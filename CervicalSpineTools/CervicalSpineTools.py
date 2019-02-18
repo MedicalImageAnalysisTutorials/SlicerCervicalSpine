@@ -1,24 +1,21 @@
-
 #======================================================================================
-#  3D Slicer [1] plugin that uses elastix toolbox [2] Plugin for Automatic Vertebra   # 
-#  Image Segmentation and other useful features extraction[3]                         #.
-#  More info can be found at [4].                                                     #
-#  Sample vertebra datasets can be downloaded using Slicer Datastore module            #
+#  3D Slicer [1] plugin that uses elastix toolbox [2] Plugin for Automatic Cervical   # 
+#  SPine Image Segmentation and other useful features extraction[3]                   #
+#  More info can be found at [3,4 and 5]                                              #
+#  Sample vertebra datasets can be downloaded using Slicer Datastore module           #
 #                                                                                     #
-#  Contributers:                                                                      #   
-#      - Christopher L. Guy,   guycl@vcu.edu              : Original source code.     #
-#      - Ibraheem Al-Dhamari,  idhamari@uni-koblenz.de    : Plugin design.            #
-#      - Michel Peltriaux,     mpeltriaux@uni-koblenz.de  : Programming & testing.    #
-#      - Anna Gessler,         agessler@uni-koblenz.de    : Programming & testing.    #
-#      - Jasper Grimmig        jgrimmig@uni-koblenz.de    : Programming & testing.    #
-#      - Pepe Eulzer           eulzer@uni-koblenz.de      : Programming & testing.    #  
+#  Contributers: Ibraheem Al-Dhamari,  idhamari@uni-koblenz.de                        #
 #  [1] https://www.slicer.org                                                         #
 #  [2] http://elastix.isi.uu.nl                                                       #
-#  [3] TODO: add paper Al-Dhamari et al.,(2018),                                      #
+#  [3] Ibraheem AL-Dhamari, Sabine Bauer, Eva Keller and Dietrich Paulus, (2019),     #
+#      Automatic Detection Of Cervical Spine Ligaments Origin And Insertion Points,   #
+#      IEEE International Symposium on Biomedical Imaging (ISBI), Venice, Italy.      #
+#  [4] Ibraheem Al-Dhamari, Sabine Bauer, Dietrich Paulus, (2018), Automatic          #
+#      Multi-modal Cervical Spine Image Atlas Segmentation Using Adaptive Stochastic  #
+#      Gradient Descent, Bildverarbeitung feur die Medizin 2018 pp 303-308.            #  
+#  [5] https://mtixnat.uni-koblenz.de                                                 #
 #                                                                                     #
-#  [4] https://mtixnat.uni-koblenz.de                                                 #
-#                                                                                     #
-#  Updated: 11.1.2019                                                                 #    
+#  Updated: 14.2.2019                                                                 #    
 #                                                                                     #  
 #======================================================================================
 
@@ -41,15 +38,16 @@ from multiprocessing.dummy import Process
 
 import SegmentStatistics
 import Elastix
-import VertebraTools
+import CervicalVertebraTools
 
 #TODO:
+# size, change parameters, change locations
+# wrong position, wrong results for a group.
+
 # cleaning 
-# lig and muscle (all) checkboxes and implementation
 # vertebra info parallel
 # extract scaled model
 # remove temporary node and files
-# test other methods
 # test with user input
 
 
@@ -88,23 +86,17 @@ import VertebraTools
 #                           Main Class
 #===================================================================
 
-class SpineTools(ScriptedLoadableModule):
+class CervicalSpineTools(ScriptedLoadableModule):
   """Uses ScriptedLoadableModule base class, available at:
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
 
   def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
-        parent.title = "Spine Tools"
+        parent.title = "Cervical Spine Tools"
         parent.categories = ["VisSimTools"]
         parent.dependencies = []
-        parent.contributors = ["Christopher Guy",
-                               "Ibraheem Al-Dhamari",
-                               "Michel Peltriauxe",
-                               "Anna Gessler",
-                               "Jasper Grimmig",
-                               "Pepe Eulzer"  
-         ]
+        parent.contributors = ["Ibraheem Al-Dhamari" ]
         self.parent.helpText += self.getDefaultModuleDocumentationLink()
         #TODO: add sponsor
         parent.acknowledgementText = " This work is sponsored by ................ "
@@ -116,16 +108,16 @@ class SpineTools(ScriptedLoadableModule):
 #===================================================================
 #                           Main Widget
 #===================================================================
-class SpineToolsWidget(ScriptedLoadableModuleWidget):
+class CervicalSpineToolsWidget(ScriptedLoadableModuleWidget):
   """Uses ScriptedLoadableModuleWidget base class, available at:
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
 
-  #VTl = VertebraTools.VertebraToolsLogic()
+  #VTl = CervicalVertebraTools.CervicalVertebraToolsLogic()
   def setup(self):
     print(" ")
     print("=======================================================")   
-    print("   VisSIm Cervical Spine Spine Tools               ")
+    print("   VisSim Cervical Spine Tools               ")
     print("=======================================================")           
         
     ScriptedLoadableModuleWidget.setup(self)
@@ -133,8 +125,8 @@ class SpineToolsWidget(ScriptedLoadableModuleWidget):
     # to access logic class functions and setup global variables
     # Set default VisSIm location in the user home 
     #TODO: add option user-defined path when installed first time
-    self.logic = SpineToolsLogic()
-    self.VTl = VertebraTools.VertebraToolsLogic()    
+    self.logic = CervicalSpineToolsLogic()
+    self.VTl = CervicalVertebraTools.CervicalVertebraToolsLogic()    
     #=================================================================
     #                     Create the GUI interface
     #=================================================================   
@@ -188,46 +180,11 @@ class SpineToolsWidget(ScriptedLoadableModuleWidget):
 
     self.mainFormLayout.addRow( self.inputPointEdt, self.vtIDCoBx)    
 
-    # use qtcombobox
-    self.vtMthdLbl = qt.QLabel()
-    self.vtMthdLbl.setText("Which Method?")        
-    self.vtMthdLbl.setFixedHeight(20)
-    self.vtMthdLbl.setFixedWidth(150)
-    
-    self.vtMethods = ["Vertebra","Vertebral body","Vertebral endplates","Vertebral endplates outside","Vertebral endplates inside"]
-    self.vtMethodIDCoBx = qt.QComboBox()
-    #TODO: check the names
-    self.vtMethodIDCoBx.addItems(self.vtMethods)
-    self.vtMethodIDCoBx.setCurrentIndex(0)
-    self.vtMethodIDCoBx.setFixedHeight(20)
-    self.vtMethodIDCoBx.setFixedWidth(200)        
-    #self.vtIDCoBx.setReadOnly(False) # The point can only be edited by placing a new Fiducial  
-    # if changed , the default value will change
-    self.vtMethodIDCoBx.connect("currentIndexChanged(int)", self.onVtMethodIDCoBxChange)                                 
-    self.mainFormLayout.addRow( self.vtMthdLbl,  self.vtMethodIDCoBx )    
-
     # Add check box for extracting ligaments points 
     self.ligPtsChkBx = qt.QCheckBox("Ligaments points")
     self.ligPtsChkBx.checked = True
     self.ligPtsChkBx.stateChanged.connect(self.onLigPtsChkBxChange)
-    # Add check box for extracting muscle points 
-    self.musPtsChkBx = qt.QCheckBox("Muscle points")
-    self.musPtsChkBx.checked = True
-    self.musPtsChkBx.stateChanged.connect(self.onMusPtsChkBxChange)
-    self.mainFormLayout.addRow(self.ligPtsChkBx,self.musPtsChkBx)
-
-    # Add check box for using iso resampled models
-    self.hrChkBx = qt.QCheckBox()
-    self.hrChkBx.checked = True
-    self.hrChkBx.text = "Resampling"
-    self.hrChkBx.stateChanged.connect(self.onHrChkBxChange)
- 
-    # Add check box for using MR models
-    #TODO: add the model and implementation 
-    self.mrChkBx = qt.QCheckBox()
-    self.mrChkBx.checked = False
-    self.mrChkBx.text = "MRI model"
-    #self.mainFormLayout.addRow(self.hrChkBx, self.mrChkBx)
+    self.mainFormLayout.addRow(self.ligPtsChkBx)
 
     # Create a time label
     self.timeLbl = qt.QLabel("  Time: 00:00")
@@ -244,15 +201,6 @@ class SpineToolsWidget(ScriptedLoadableModuleWidget):
     self.mainFormLayout.addRow(self.applyBtn, self.timeLbl)
     self.runBtn = self.applyBtn
 
-    # Create a button to scale and translate to center of mass
-    self.extractScaledModelBtn = qt.QPushButton("Scaling")
-    self.extractScaledModelBtn.setFixedHeight(20)
-    self.extractScaledModelBtn.setFixedWidth (150)
-    self.extractScaledModelBtn.enabled =False
-    self.extractScaledModelBtn.setStyleSheet("QPushButton{ background-color: DarkSeaGreen  }")
-    self.extractScaledModelBtn.toolTip = ('Scale model and points to 1 mm and translate them to the model center of mass ')
-    self.extractScaledModelBtn.connect('clicked(bool)', self.onExtractScaledModelBtnClick)
-
     # Create a button to display result folder
     self.openResultFolderBtn = qt.QPushButton("open output folder")
     self.openResultFolderBtn.setFixedHeight(20)
@@ -261,7 +209,7 @@ class SpineToolsWidget(ScriptedLoadableModuleWidget):
     self.openResultFolderBtn.toolTip = ('Scale model and points to 1 mm and translate them to the model center of mass ')
     self.openResultFolderBtn.connect('clicked(bool)', self.onOpenResultFolderBtnClick)
     
-    self.mainFormLayout.addRow(self.extractScaledModelBtn,self.openResultFolderBtn)
+    self.mainFormLayout.addRow(self.openResultFolderBtn)
 
     self.layout.addStretch(1) # Collapsible button is held in place when collapsing/expanding.
     lm = slicer.app.layoutManager();    lm.setLayout(2)
@@ -270,10 +218,6 @@ class SpineToolsWidget(ScriptedLoadableModuleWidget):
     pass
   #enddef
 
-  def onVtMethodIDCoBxChange(self):
-      print(self.vtMethodIDCoBx.setCurrentText)
-      self.logic.vtVars = self.VTl.setVtMethodID(self.vtMethodIDCoBx.currentIndex,self.logic.vtVars)  
-  #enddef
 
   #------------------------------------------------------------------------
   #                        Vertebra Selection
@@ -314,13 +258,6 @@ class SpineToolsWidget(ScriptedLoadableModuleWidget):
       self.VTl.setLigChk(self.ligPtsChkBx.checked,nodes)
   #enddef
   
-  # extract muscle points 
-  def onMusPtsChkBxChange(self):      
-      nodes = slicer.util.getNodesByClass('vtkMRMLMarkupsFiducialNode')
-      self.VTl.setMusChk(self.musPtsChkBx.checked,nodes)
-  #enddef
-
-  
   def onApplyBtnClick(self):
       #check if C1,C4 and C7 points are selected
       self.runBtn.setText("...please wait")
@@ -338,39 +275,22 @@ class SpineToolsWidget(ScriptedLoadableModuleWidget):
                  # create an option to use IJK point or fidicual node
                  # inputImage, FiducialPoints, isExteranl 
                  self.logic.run( self.inputSelectorCoBx.currentNode(),self.logic.inputFiducialNode ,False)         
-                 self.extractScaledModelBtn.enabled = True
-
-                 self.etm=time.time()
-                 tm=self.etm - self.stm
-                 self.timeLbl.setText("Time: "+str(tm)+"  seconds")
-                 self.runBtn.setText("Run")
-                 self.runBtn.setStyleSheet("QPushButton{ background-color: DarkSeaGreen  }")
-                 slicer.app.processEvents()
+  
             else:
                 print("C1,C4 and C7 points are not selected !")   
       except Exception as e:
                 print("STOPPED: error in input")
                 print(e)
       #endtry        
+      self.etm=time.time()
+      tm=self.etm - self.stm
+      self.timeLbl.setText("Time: "+str(tm)+"  seconds")
+      self.runBtn.setText("Run")
+      self.runBtn.setStyleSheet("QPushButton{ background-color: DarkSeaGreen  }")
+      slicer.app.processEvents()
                 
   #enddef
-  
-  def onExtractScaledModelBtnClick(self):
-      #Modify to work on all vertebrae
-      vtUnScaledType = "_Seg_C"
-      self.logic.extractScaledModels(vtUnScaledType)
-      if self.ligPtsChkBx.checked:
-         vtUnScaledType = "_LigPts_C"
-         self.logic.extractScaledModels(vtUnScaledType)
-      #endif
-      if self.musPtsChkBx.checked:
-           vtUnScaledType = "_MusPts_C"
-           self.logic.extractScaledModels(vtUnScaledType)
-      #endif
-      self.VTl.msgBox("Done! scaled model is saved.")
        
-      #TODO: add option for show/hide the result. 
-      
   def onOpenResultFolderBtnClick(self):
       output = expanduser("~")+",VisSimTools"   + ",outputs"
       output = os.path.join(*output.split(","))
@@ -379,11 +299,11 @@ class SpineToolsWidget(ScriptedLoadableModuleWidget):
 #===================================================================
 #                           Logic
 #===================================================================
-class SpineToolsLogic(ScriptedLoadableModuleLogic):
+class CervicalSpineToolsLogic(ScriptedLoadableModuleLogic):
 
   ElastixLogic = Elastix.ElastixLogic()
   ElastixBinFolder = ElastixLogic.getElastixBinDir()
-  VTl = VertebraTools.VertebraToolsLogic()
+  VTl = CervicalVertebraTools.CervicalVertebraToolsLogic()
   vtVars = VTl.setGlobalVariables(True)
   VTl.vtVars =vtVars
   
@@ -443,11 +363,6 @@ class SpineToolsLogic(ScriptedLoadableModuleLogic):
 
   def  run( self, inputVolumeNode, inputFiducialNode , isExternalCall):
 
-       #self.vtVars = self.setGlobalVariables(isExternalCall)
-              
-       #endif
-       #self.inputVolumeNode   = inputVolumeNode
-       #self.inputFiducialNode = inputFiducialNode
        outputPaths =[]
        intputCropPaths  =[]
        inputPoints = []
@@ -501,17 +416,7 @@ class SpineToolsLogic(ScriptedLoadableModuleLogic):
            #endif
            print(modelCropPaths[i])
            print(outputPaths[i])
-       #endfor
-       print(self.vtVars['subVarsTemplateFnm'] )
-       self.vtVars['subVarsFnm']  =  self.vtVars['outputPath']+","+ inputVolumeNode.GetName() + "_spkSubVars.txt"
-       self.vtVars['subVarsFnm']  = os.path.join(*self.vtVars['subVarsFnm'].split(","))
-       print(self.vtVars['subVarsFnm'])        
-       #cR =  copyfile(self.subVarsTemplateFnm, self.subVarsFnm)
-       if not os.path.exists(self.vtVars['subVarsFnm']):
-          cR =  shutil.copy(self.vtVars['subVarsTemplateFnm'], self.vtVars['subVarsFnm'])
-          print(cR)
-       #endif
-  
+       #endfor 
        self.inputVolumeNode = inputVolumeNode
        self.inputFiducialNode = inputFiducialNode
        self.outputPaths =  outputPaths
@@ -548,10 +453,6 @@ class SpineToolsLogic(ScriptedLoadableModuleLogic):
            vtResultSegNode.SetAndObserveTransformNodeID(vtTransformNode.GetID()) # movingAllMarkupNode should be loaded, the file contains all points
            slicer.vtkSlicerTransformLogic().hardenTransform(vtResultSegNode) 
            vtResultSegNode.CreateClosedSurfaceRepresentation() 
-           # for surfaces, do grow margin with 1 mm
-           if int(self.vtVars['vtMethodID']) >1  :
-              self.VTl.runMargining(vtResultSegNode,self.inputVolumeNode ,1)
-           #endif
 
            if self.VTl.s2b(self.vtVars['ligChk']):            
               print ("************  Transform Ligaments Points **********************")
@@ -566,23 +467,8 @@ class SpineToolsLogic(ScriptedLoadableModuleLogic):
               slicer.vtkSlicerTransformLogic().hardenTransform(vtResultLigPtsNode) # apply the transform
               # needed in extract scaled model
               self.vtResultLigPtsNode = vtResultLigPtsNode
-
            #endif 
-           if  self.VTl.s2b(self.vtVars['musChk']):
-              print ("************  Transform Muscles Points **********************")
-              modelCropImgMusPtsPath = self.vtVars['modelPath'] +self.vtVars['vtPtsMusDir']+","+self.vtVars['Styp']+ str(vtID)+self.vtVars['vtPtsMusSuff']+".fcsv"
-              modelCropImgMusPtsPath        = os.path.join(*modelCropImgMusPtsPath.split(","))
-              resultMusPtsNodeName =  self.inputVolumeNode.GetName() + "_MusPts_C"+str(vtID)
-              [success, vtResultMusPtsNode] = slicer.util.loadMarkupsFiducialList  (modelCropImgMusPtsPath, returnNode = True)
-              vtResultMusPtsNode.GetDisplayNode().SetTextScale(1)
-              vtResultMusPtsNode.GetDisplayNode().SetSelectedColor(0,0,1)           
-              vtResultMusPtsNode.SetName(resultMusPtsNodeName)
-              vtResultMusPtsNode.SetAndObserveTransformNodeID(vtTransformNode.GetID()) # movingAllMarkupNode should be loaded, the file contains all points
-              slicer.vtkSlicerTransformLogic().hardenTransform(vtResultMusPtsNode) # apply the transform
-              # needed in extract scaled model
-              self.vtResultLigPtsNode = vtResultMusPtsNode
 
-           #endif 
            print ("************  get Vertebra Info  **********************")
            self.getVertebraInfoAll( i )
        #endfor
@@ -596,7 +482,6 @@ class SpineToolsLogic(ScriptedLoadableModuleLogic):
      
        self.vtVars['segNodeCoM']= self.VTl.vtVars['segNodeCoM']
        self.vtResultSegNode = vtResultSegNode
-
        #slicer.mrmlScene.RemoveNode(croppedNode )
 
   #enddef
@@ -664,37 +549,6 @@ class SpineToolsLogic(ScriptedLoadableModuleLogic):
       self.resultsTableNode = self.VTl.getVertebraInfo( segNode, masterNode, vtID, self.resultsTableNode)
   #enddef
   
- 
-  #--------------------------------------------------------------------------------------------
-  #                        Calculate length and volume of scalas
-  #--------------------------------------------------------------------------------------------
-  def extractScaledModelAll(self,i):
-      if not (self.vtVars['segNodeCoM'] is None):
-          vtID = i+1
-          print("extract scaled model process start for C" + str(i))
-          vtUnscaledName =  self.inputVolumeNode.GetName()+self.vtUnScaledType+str(vtID)
-          try:
-              vtUnscaledNode =   slicer.util.getNode(vtUnscaledName)
-              self.VTl.extractScaledModel(vtUnscaledNode , self.vtVars['segNodeCoM'],self.vtVars['subVarsFnm'])      
-              print("extract scaled model process complete for C" + str(i))
-          except:
-               print("error, node is not found " + vtUnscaledName )
-               print("Complete vertebra method must be used! ")                    
-      else:
-         print("error, C7 center of mass is missing! ")    
-      #endif
-         
-  #enddef
-
-  def extractScaledModels(self,vtUnScaledType):
-      self.vtUnScaledType = vtUnScaledType
-      for i in range(7):
-          self.extractScaledModelAll(i)
-      #endfor    
-  #enddef    
-
-
-
   def rmvSlicerNode(self,node):
     slicer.mrmlScene.RemoveNode(node)
     slicer.mrmlScene.RemoveNode(node.GetDisplayNode())
@@ -704,14 +558,14 @@ class SpineToolsLogic(ScriptedLoadableModuleLogic):
 #===================================================================
 #                           Test
 #===================================================================
-class SpineToolsTest(ScriptedLoadableModuleTest):
+class CervicalSpineToolsTest(ScriptedLoadableModuleTest):
   """
   This is the test case for your scripted module.
   Uses ScriptedLoadableModuleTest base class, available at:
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
-  logic =  SpineToolsLogic()
-  #VTl  = VertebraTools.VertebraToolsLogic()
+  logic =  CervicalSpineToolsLogic()
+  #VTl  = CervicalVertebraTools.CervicalVertebraToolsLogic()
   #VTl.setGlobalVariables(True)
 
   def setUp(self):
@@ -725,23 +579,43 @@ class SpineToolsTest(ScriptedLoadableModuleTest):
     """Run as few or as many tests as needed here.
     """
     self.setUp()
-    self.testSlicerSpineTools()
+    self.testSlicerCervicalSpineTools()
 
-  def testSlicerSpineTools(self):
+  def testSlicerCervicalSpineTools(self):
  
     # optimize run in parallel 
     self.delayDisplay("Starting the test")
     self.stm=time.time()
     print("time:" + str(self.stm))
 
-    fnm = os.path.join(*(self.logic.vtVars['outputPath'] +",imgA"+self.logic.vtVars['imgType']).split(",")) 
+    #msgbox for testing
+    
+
+    tstImg = 1 # 1 =CT, 2 = MR 
+    if tstImg ==1:
+       imgWebLink = "https://cloud.uni-koblenz-landau.de/s/Mb6JHLdWw5MEPB2/download"
+       fnm = os.path.join(*(self.logic.vtVars['outputPath'] +",imgCT"+self.logic.vtVars['imgType']).split(","))
+       #  CT: define a markup with all locations  
+       c1p = [-5.507 ,  -20.202 , -18.365 ]
+       c2p = [-1.169  , -20.089 , -45.021 ]
+       c4p = [ 0.390  , -11.754 , -74.194 ]
+       c7p = [ 0.390  , -26.445 ,-115.821 ]
+    else:
+       imgWebLink = "https://cloud.uni-koblenz-landau.de/s/ieyDfHpCjHNpZXi/download"
+       fnm = os.path.join(*(self.logic.vtVars['outputPath'] +",imgMR"+self.logic.vtVars['imgType']).split(","))
+       # MR: define a markup with all locations     
+       c1p = [  1.062  ,  53.364 ,  145.951 ]
+       c2p = [ -0.408  ,  44.283 ,  122.994 ]
+       c4p = [ -0.408  ,  36.107 ,   89.941 ]
+       c7p = [ -0.408  ,   3.439 ,   54.432 ]
+    #endif
+        
+    # don't download if already downloaded                       
     if not os.path.exists(fnm):
        try:         
            print("Downloading vertebra sample image ...")
            import urllib
-           imgCtWebLink = "https://mtixnat.uni-koblenz.de/owncloud/index.php/s/Wiaqr0vfCr10h44/download"
-           imgMrWebLink = "https://mtixnat.uni-koblenz.de/owncloud/index.php/s/nnwKxqavP4ORv9y/download"
-           urllib.urlretrieve (imgCtWebLink ,fnm )
+           urllib.urlretrieve (imgWebLink ,fnm )
        except Exception as e:
               print("Error: can not download sample file  ...")
               print(e)   
@@ -766,13 +640,6 @@ class SpineToolsTest(ScriptedLoadableModuleTest):
      
     [success, self.inputVolumeNode] = slicer.util.loadVolume( fnm, returnNode=True)
     
-    # define a markup with all locations  
-    c1p = [-5.507 , -20.202 ,-18.365 ]
-    c2p = [-1.169  , -20.089 ,-45.021]
-    c4p = [0.390  , -11.754 ,-74.194 ]
-    c7p = [0.390  , -26.445 ,-115.821]
-    
-
     self.inputFiducialNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
     self.inputFiducialNode.CreateDefaultDisplayNodes()
     #TODO: change the name to points 
@@ -791,11 +658,6 @@ class SpineToolsTest(ScriptedLoadableModuleTest):
     # run( self,         inputVolumeNode, inputFiducialNode      , isExternalCall):
 
     self.logic.run(self.inputVolumeNode, self.inputFiducialNode , isExt )
- 
-    #self.logic.extractScaledModel(self.inputVolumeNode , self.C7comPt):
-    self.logic.extractScaledModels("_Seg_C")
-    self.logic.extractScaledModels("_LigPts_C")
-    self.logic.extractScaledModels("_MusPts_C")
     
     self.etm=time.time()
     tm=self.etm - self.stm
