@@ -1,0 +1,88 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+ <meta charset="UTF-8">
+ <meta name="description" content="Uni Koblenz Mti Xnat">
+ <meta name="keywords" content="Mti Xnat Uni Koblenz" />
+ <meta name="DC.title" content="undefined" />
+ <meta name="geo.region" content="DE-RLP" />
+ <meta name="geo.placename" content="Koblenz" />
+ <meta name="geo.position" content="50.73743;7.098207" />
+ <meta name="ICBM" content="50.73743, 7.098207" />
+
+<link rel="stylesheet" href="style.css">
+
+<title>Slicer Cochlea Documentation</title>
+   
+</head>
+<body>
+
+
+<div id="mainContainer">
+
+         <h2>	Slicer Cervical Spine Documentation   </h2>                  
+
+       <img src="images/CS00.png"  style="width:400;height:300px;" />
+<p>The cervical spine is the upper part of the spine that supports the head and its movement. It contains seven vertebrae C1 to C7.</p>
+
+<p> There are two modules in this extension (more are coming). Both modules do the same tasks but the first one for a single vertebra and the second module for the complete cervical spine. 
+
+<p> Features:
+
+<ol>
+
+  <li>  Work on multi-modal images (so far it is tested against CT and MRI).
+  <li>  fast (around 5 seconds). 
+  <li>  Automatic segmentation.
+  <li>  Automatic ligaments points detection.
+  <li>  Can be generalized to other parts of the spine or body.
+</ol>
+
+<p> Plese note that the extension is still not perfect as it uses rigid transform to get stable results. It is a good start to have more accuarte methods in the future e.g. by using seconds stage non-rigid transformation or using points from the resulted segmentation as seed points in other ethods.   
+
+<p> Cervical spien sample datasets are available in Slicer Data Store module. You are welcome to contribute by correcting, enhancing, optimising the code or sharing your cervical spine dataset. For questions or problems using this extension please use gitHub issue or post in 3D Slicer forum. For more details please read these related publications:
+
+<ol>
+  <li> Ibraheem AL-Dhamari, Sabine Bauer, Eva Keller and Dietrich Paulus, Automatic Detection of Cervical Spine Ligaments Origin and Insertion Points. Accepted in The IEEE International Symposium on Biomedical Imaging (ISBI)  2019, Venice, Italy. 
+  <li> Ibraheem Al-Dhamari, Sabine Bauer, Dietrich Paulus, (2018), Automatic Multi-modal Cervical Spine Image Atlas Segmentation Using Adaptive Stochastic Gradient Descent, Bildverarbeitung für die Medizin 2018 pp 303-308. 
+</ol>
+
+<p> </p>
+<p> <b>How to use:</b> </p>
+<p> The following sections give instructions how to use these modules. A more detailed video demo can be found in the links bellow these sections.  </p>
+<p> <b>Cervical Vertebra Tools:</b> </p>
+<p> 1. Load the Cervical Vertebra Tools module under VisSimTools.  </p>
+       <img src="images/CVT01.png"  style="width:1200px;height:900px;" />
+<p> 2. Select a vertebra and click on its location in the image. This location is used for cropping purposes so it is not important if it is not accurate. </p>
+       <img src="images/CVT02.png"  style="width:1200px;height:900px;" />
+       <img src="images/CVT03.png"  style="width:1200px;height:900px;" />
+<p> 3. Click on "Run". Note that you can disable/enable getting and displaying the ligaments point using the above checkbox.</p>
+       <img src="images/CVT04.png"  style="width:1200px;height:900px;" />
+<p> 4. In a few seconds, you get the segmentation and the ligamnets point.
+       <img src="images/CVT05.png"  style="width:1200px;height:900px;" />
+
+<p> <b>Cervical Spine Tools:</b> </p>
+<p> 1. Load the Cervical Spine Tools module under VisSimTools.  </p>
+       <img src="images/CST01.png"  style="width:1200px;height:900px;" />
+<p> 2. Similar to step 2 above, select 4 vertebrae C1,C2,C3 and C4. Other vertebrae locations will be calculated from them.  </p>
+       <img src="images/CST02.png"  style="width:1200px;height:900px;" />
+<p> 3. Click on "Run". Note that you can disable/enable getting and displaying the ligaments point using the above checkbox. A table with the volume size and the center of mass of C7 will be displayed as well. This center of mass can be used later to shift the cervical spine to be used with externl simulation tools.</p>
+       <img src="images/CST03.png"  style="width:1200px;height:900px;" />
+
+<br><br><br>
+ 
+<br><br><br>
+<p> <b>Resources: </b>
+<p>  <a href="https://www.youtube.com/watch?v=oRQ767ojS9o&index=2&list=PLW9iOMxMvikrSyerCLPJhTZnNUDBNpSYO&t=159s"  > Cervical Vertebra Tools demo.</a>
+<p>  <a href="https://www.youtube.com/watch?v=A_mTcT3eT_c&index=2&list=PLW9iOMxMvikrSyerCLPJhTZnNUDBNpSYO"         > Cervical Spine Tools demo.</a>
+<p>  <a href="https://mtixnat.uni-koblenz.de/downloads.html"  >Source-codes and datasets.</a>
+ 
+</div>
+
+	 
+</body>
+
+</html>
