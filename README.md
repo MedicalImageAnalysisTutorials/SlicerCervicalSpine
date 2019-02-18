@@ -25,6 +25,7 @@ Please share your cervical spine dataset with us.
 
 Your contribution is welcome! 
 
+Note: This project uses [Slicer license](https://github.com/Slicer/Slicer/blob/master/License.txt)
 
 
 
