@@ -1224,40 +1224,52 @@ class CervicalVertebraToolsTest(ScriptedLoadableModuleTest):
     
     # to get the links from datastore open http://slicer.kitware.com/midas3/community/23 then select a file and click share to get
     # the download link
-    # TODO: fix datastore link download problem, the file is created before downloaded   
-    #   imgLaWeb = "http://slicer.kitware.com/midas3/download/item/381221/P100001_DV_L_a"
 
-    fnm = os.path.join(*(self.logic.vtVars['outputPath'] +",imgA"+self.logic.vtVars['imgType']).split(",")) 
+    tstImg = 1 # 1 =CT, 2 = MR 
+    if tstImg ==1:
+       imgWebLink = "https://cloud.uni-koblenz-landau.de/s/Mb6JHLdWw5MEPB2/download"
+       fnm = os.path.join(*(self.logic.vtVars['outputPath'] +",imgCT"+self.logic.vtVars['imgType']).split(","))
+       c7p = [ 0.390  , -26.445 ,-115.821 ]
+    else:
+       imgWebLink = "https://cloud.uni-koblenz-landau.de/s/ieyDfHpCjHNpZXi/download"
+       fnm = os.path.join(*(self.logic.vtVars['outputPath'] +",imgMR"+self.logic.vtVars['imgType']).split(","))
+       c7p = [ -0.408  ,   3.439 ,   54.432 ]
+    #endif
+
+
+
+    # don't download if already downloaded                       
     if not os.path.exists(fnm):
        try:         
            print("Downloading vertebra sample image ...")
            import urllib
-           imgCtWebLink = "https://mtixnat.uni-koblenz.de/owncloud/index.php/s/Wiaqr0vfCr10h44/download"
-           imgMrWebLink = "https://mtixnat.uni-koblenz.de/owncloud/index.php/s/nnwKxqavP4ORv9y/download"
-           urllib.urlretrieve (imgMrWebLink ,fnm )
+           urllib.urlretrieve (imgWebLink ,fnm )
        except Exception as e:
               print("Error: can not download sample file  ...")
               print(e)   
               return -1
        #end try-except 
     #endif
-    [success, inputVolumeNode] = slicer.util.loadVolume( fnm, returnNode=True)
-    
-    # create a fiducial node for vertebra location for cropping    
-    #RASpt  = [-1.169, -12.078, -57.042] #CTC3 
-    #RASpt = [-2.870, 43.614, 107.779]
-    #RASpt  = [-1.169, -15.156, -39.855] #CTC2
-    #RASpt = [-2.167, 46.822, 127.272]
-    
-    #RASpt  =[2.329,  -16.500,  -114.286] #CTC7    
-    #RASpt  =[0.390,  -23.553,  -115.521] #CTC7
-    
-    RASpt = [-4.276, 6.942, 54.510]
+    # remove old nodes 
+    nodes = slicer.util.getNodesByClass('vtkMRMLMarkupsFiducialNode')
+    for f in nodes:
+       if ((f.GetName() == "VertebraLocationPoint") ):
+           slicer.mrmlScene.RemoveNode(f)
+       #endif
+    #endfor 
+    nodes = slicer.util.getNodesByClass('vtkScalarVolumeNode')
+    for f in nodes:
+       if (f.GetName() ==  "imgA"):
+           slicer.mrmlScene.RemoveNode(f)
+       #endif
+    #endfor 
+         
+    [success, self.inputVolumeNode] = slicer.util.loadVolume( fnm, returnNode=True)
 
     inputFiducialNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
     inputFiducialNode.CreateDefaultDisplayNodes()
     inputFiducialNode.SetName(inputVolumeNode.GetName()+"_VertebraLocationPoints")  
-    inputFiducialNode.AddFiducialFromArray(RASpt)
+    inputFiducialNode.AddFiducialFromArray(c7p)
     
     #inputFiducialNode.AddFiducial(RASpt[0],RASpt[1],RASpt[2])
     # Which vertebra
