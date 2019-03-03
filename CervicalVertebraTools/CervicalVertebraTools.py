@@ -1264,7 +1264,7 @@ class CervicalVertebraToolsTest(ScriptedLoadableModuleTest):
        #endif
     #endfor 
          
-    [success, self.inputVolumeNode] = slicer.util.loadVolume( fnm, returnNode=True)
+    [success, inputVolumeNode] = slicer.util.loadVolume( fnm, returnNode=True)
 
     inputFiducialNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
     inputFiducialNode.CreateDefaultDisplayNodes()

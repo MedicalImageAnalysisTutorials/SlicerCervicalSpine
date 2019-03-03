@@ -638,26 +638,25 @@ class CervicalSpineToolsTest(ScriptedLoadableModuleTest):
     #endfor 
     
      
-    [success, self.inputVolumeNode] = slicer.util.loadVolume( fnm, returnNode=True)
+    [success, inputVolumeNode] = slicer.util.loadVolume( fnm, returnNode=True)
     
-    self.inputFiducialNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
-    self.inputFiducialNode.CreateDefaultDisplayNodes()
+    inputFiducialNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
+    inputFiducialNode.CreateDefaultDisplayNodes()
     #TODO: change the name to points 
-    self.inputFiducialNode.SetName("VertebraLocationPoint")  
-    self.inputFiducialNode.AddFiducialFromArray(c1p)
-    self.inputFiducialNode.SetNthFiducialLabel(0, "C1")
-    self.inputFiducialNode.AddFiducialFromArray(c2p)
-    self.inputFiducialNode.SetNthFiducialLabel(1, "C2")
-    self.inputFiducialNode.AddFiducialFromArray(c4p)
-    self.inputFiducialNode.SetNthFiducialLabel(2, "C4")
-    self.inputFiducialNode.AddFiducialFromArray(c7p)
-    self.inputFiducialNode.SetNthFiducialLabel(3, "C7")
+    inputFiducialNode.SetName("VertebraLocationPoint")  
+    inputFiducialNode.AddFiducialFromArray(c1p)
+    inputFiducialNode.SetNthFiducialLabel(0, "C1")
+    inputFiducialNode.AddFiducialFromArray(c2p)
+    inputFiducialNode.SetNthFiducialLabel(1, "C2")
+    inputFiducialNode.AddFiducialFromArray(c4p)
+    inputFiducialNode.SetNthFiducialLabel(2, "C4")
+    inputFiducialNode.AddFiducialFromArray(c7p)
+    inputFiducialNode.SetNthFiducialLabel(3, "C7")
 
     # call run with the downloaded image and the locations
     isExt = True
     # run( self,         inputVolumeNode, inputFiducialNode      , isExternalCall):
-
-    self.logic.run(self.inputVolumeNode, self.inputFiducialNode , isExt )
+    self.logic.run(inputVolumeNode, inputFiducialNode , isExt )
     
     self.etm=time.time()
     tm=self.etm - self.stm
