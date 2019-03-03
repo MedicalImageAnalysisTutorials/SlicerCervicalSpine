@@ -1,5 +1,5 @@
 #-----------------------------------------------------------------------------
-set(MODULE_NAME SlicerCervicalSpineTools)
+set(MODULE_NAME CervicalSpineTools) 
 
 #-----------------------------------------------------------------------------
 set(MODULE_PYTHON_SCRIPTS

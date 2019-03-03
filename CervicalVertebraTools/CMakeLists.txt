@@ -1,5 +1,5 @@
 #-----------------------------------------------------------------------------
-set(MODULE_NAME VertebraTools)
+set(MODULE_NAME CervicalVertebraTools)
 
 #-----------------------------------------------------------------------------
 set(MODULE_PYTHON_SCRIPTS
