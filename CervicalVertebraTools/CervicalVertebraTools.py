@@ -15,11 +15,11 @@
 #      Gradient Descent, Bildverarbeitung feur die Medizin 2018 pp 303-308.           #  
 #  [5] https://mtixnat.uni-koblenz.de                                                 #
 #                                                                                     #
-#  Updated: 14.2.2019                                                                 #    
+#  Updated: 4.3.2019                                                                 #    
 #                                                                                     #  
 #======================================================================================
 
-import os, re , datetime, time ,shutil, unittest, logging, zipfile, urllib2, stat,  inspect
+import os, re , datetime, time ,shutil, unittest, logging, zipfile, urllib2, stat,  inspect, glob
 import sitkUtils, sys ,math, platform, subprocess  
 import numpy as np, SimpleITK as sitk
 import vtkSegmentationCorePython as vtkSegmentationCore
@@ -685,13 +685,15 @@ class CervicalVertebraToolsLogic(ScriptedLoadableModuleLogic):
            resampleSpacing = " ["+ str(self.RSx) + "," + str(self.RSy) + "," + str(self.RSz) + "] "
            #TODO: Get Slicer PATH
            SlicerPath =os.path.abspath(os.path.join(os.path.abspath(os.path.join(os.sys.executable, os.pardir)), os.pardir))
-           SlicerBinPath =   os.path.join(SlicerPath,"Slicer")  
-           ResampleBinPath = SlicerPath +",lib,Slicer-4.10,cli-modules,ResampleScalarVolume"
-           ResampleBinPath =  os.path.join(*ResampleBinPath.split(",")) 		   
+           SlicerBinPath = os.path.join(SlicerPath,"Slicer")  
+           ResampleBinPath          =  os.path.join( (glob.glob(os.path.join(SlicerPath,"lib","Slicer") + '*'))[0]	, "cli-modules","ResampleScalarVolume" )	   
+           print(ResampleBinPath)
+           #ResampleBinPath =  os.path.join(*ResampleBinPath.split(",")) 		   
            resamplingCommand = SlicerBinPath + " --launch " + ResampleBinPath   
            si = None 
            if sys.platform == 'win32':
               #note: in windows, no need to use --launch
+              SlicerBinPath = SlicerBinPath +".exe"
               resamplingCommand = ResampleBinPath + ".exe"
               print(os.path.getsize(resamplingCommand))
               si = subprocess.STARTUPINFO()
@@ -1284,5 +1286,3 @@ class CervicalVertebraToolsTest(ScriptedLoadableModuleTest):
     
     self.delayDisplay('Test passed!')
   #enddef
-
-    
