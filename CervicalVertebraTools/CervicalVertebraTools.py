@@ -15,7 +15,7 @@
 #      Gradient Descent, Bildverarbeitung feur die Medizin 2018 pp 303-308.           #  
 #  [5] https://mtixnat.uni-koblenz.de                                                 #
 #                                                                                     #
-#  Updated: 4.3.2019                                                                 #    
+#  Updated: 26.4.2019                                                                 #    
 #                                                                                     #  
 #======================================================================================
 
@@ -298,6 +298,8 @@ class CervicalVertebraToolsLogic(ScriptedLoadableModuleLogic):
   def setGlobalVariables(self, isExternalCall):
     print("SpineToolsLogic: initializing global variables:")  
     #define a dictonary
+    self.elastixEnv                     = self.ElastixLogic.getElastixEnv()  # to load elastix libs
+    self.elastixStartupInfo             = self.ElastixLogic.getStartupInfo() # to hide the console
     self.vtVars['vissimPath']           = os.path.join(expanduser("~"),"VisSimTools")
     self.vtVars['elastixBinPath']       = os.path.join(self.ElastixBinFolder, "elastix")
     self.vtVars['transformixBinPath']   =  os.path.join(self.ElastixBinFolder, "transformix")  
@@ -569,19 +571,33 @@ class CervicalVertebraToolsLogic(ScriptedLoadableModuleLogic):
   #                        run elastix
   #--------------------------------------------------------------------------------------------      
   def runElastix(self, elastixBinPath, fixed, moving, output, parameters, verbose, line):
-       print ("************  Compute the Transform **********************")
-       Cmd =elastixBinPath + " -f " + fixed +" -m "+ moving  + " -out " + output  + " -p " + parameters + verbose
-       print("Executing: " + Cmd)
-       #cTI=os.system(cmd)
-       si = None
-       if sys.platform == 'win32':
-         si = subprocess.STARTUPINFO()
-         si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-       #endif  
-       cTI = subprocess.call(Cmd , shell = (sys.platform == 'linux2') , startupinfo=si )
-       errStr="elastix error at line"+ line +", check the log files"
-       self.chkElxER(cTI,errStr) # Check if errors happen during elastix execution
-       return cTI
+      print ("************  Compute the Transform **********************")
+      currentOS = sys.platform
+      Cmd = elastixBinPath + ' -f ' + unicode(fixed, "utf-8") + ' -m ' +  unicode(moving, "utf-8")  + ' -out ' +  unicode(output, "utf-8") + ' -p ' + parameters 
+      if subprocess.mswindows:
+          print("Windows!!!") 
+          print(Cmd)
+          si = subprocess.STARTUPINFO()
+          si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+          cTI = subprocess.call(Cmd , shell = (sys.platform == currentOS) , startupinfo=si )
+      else:
+          print(currentOS) 
+          #CmdList = [elastixBinPath , '-f' ,  unicode(fixed, "utf-8") ,'-m',   unicode(moving, "utf-8")  , '-out' ,   unicode(output, "utf-8") , '-p' , parameters ]
+          CmdList = Cmd.split()
+          print(CmdList)
+          cTI=  subprocess.Popen(CmdList, env=self.elastixEnv,  stdout=subprocess.PIPE, universal_newlines=True)
+          cTI.wait()
+          out, err = cTI.communicate()
+          if err==None:
+             cTI=0
+          else:
+             cTI=1
+          #endif    
+      #endif
+      #time.sleep(5)
+      errStr="elastix error at line"+ line +", check the log files"
+      self.chkElxER(cTI,errStr) # Check if errors happen during elastix execution
+      return cTI
   #enddef
 
   #--------------------------------------------------------------------------------------------
@@ -589,16 +605,28 @@ class CervicalVertebraToolsLogic(ScriptedLoadableModuleLogic):
   #--------------------------------------------------------------------------------------------      
   def runTransformix(self,transformixBinPath, img, output, parameters, verbose, line):
       print ("************  Apply transform **********************")
-      si = None
-      if sys.platform == 'win32':
+      currentOS = sys.platform
+      Cmd = transformixBinPath + ' -tp ' + unicode(parameters,"utf-8") + ' -in ' +  unicode(img, "utf-8") +' -out ' +   unicode(output, "utf-8") +' -def '+ ' all '              
+      if subprocess.mswindows:
+         print("Windows!!!") 
+         print(Cmd)         
          si = subprocess.STARTUPINFO()
          si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-      #endif  		
-      # Apply the transformation to the segmentation image:
-      Cmd = transformixBinPath + " -in " + img + " -out " + output  + " -tp " + parameters +" -def all " +verbose
-      print("Executing... " + str(Cmd))
-      #cTS=os.system(Cmd)
-      cTS = subprocess.call(Cmd , shell = (sys.platform == 'linux2') , startupinfo=si )
+         cTS = subprocess.call(Cmd , shell = (sys.platform == currentOS) , startupinfo=si )
+      else:
+          print(currentOS) 
+          #CmdList = [transformixBinPath , '-tp' , unicode(parameters,"utf-8") , '-in' ,  unicode(img, "utf-8") ,'-out' ,   unicode(output, "utf-8") ,'-def', 'all']
+          CmdList = Cmd.split()
+          print(CmdList)
+          cTS=  subprocess.Popen(CmdList, env=self.elastixEnv,  stdout=subprocess.PIPE, universal_newlines=True)
+          cTS.wait()
+          out, err = cTS.communicate()
+          if err==None:
+             cTS=0
+          else:
+             cTS=1
+          #endif    
+      #endif
       errStr="transformix error at line"+ line +", check the log files"
       self.chkElxER(cTS,errStr) # Check if errors happen during elastix execution
       return cTS
@@ -609,7 +637,7 @@ class CervicalVertebraToolsLogic(ScriptedLoadableModuleLogic):
   #--------------------------------------------------------------------------------------------
   # Using the location as a center point, we cropp around it using the defined cropLength 
   def runCropping(self, inputVolume, point, vtIDt,croppingLengthT, samplingLengthT, hrChkT):
-        print("================= Begin cropping ... =====================")
+        print("================= Begin cropping  ... =====================")
         # Create a temporary node as workaround for bad path or filename 
         #TODO: create a temp folder and remove temp node before display
         vtID = int(vtIDt)
@@ -686,11 +714,15 @@ class CervicalVertebraToolsLogic(ScriptedLoadableModuleLogic):
            #TODO: Get Slicer PATH
            SlicerPath =os.path.abspath(os.path.join(os.path.abspath(os.path.join(os.sys.executable, os.pardir)), os.pardir))
            SlicerBinPath = os.path.join(SlicerPath,"Slicer")  
-           ResampleBinPath          =  os.path.join( (glob.glob(os.path.join(SlicerPath,"lib","Slicer") + '*'))[0]	, "cli-modules","ResampleScalarVolume" )	   
+           ResampleBinPath =  os.path.join( (glob.glob(os.path.join(SlicerPath,"lib","Slicer") + '*'))[0]    , "cli-modules","ResampleScalarVolume" )       
            print(ResampleBinPath)
-           #ResampleBinPath =  os.path.join(*ResampleBinPath.split(",")) 		   
+           #ResampleBinPath =  os.path.join(*ResampleBinPath.split(","))            
            resamplingCommand = SlicerBinPath + " --launch " + ResampleBinPath   
            si = None 
+           currentOS = sys.platform           
+           cmdPars = " -i linear -s "+ resampleSpacing + inputCropPath +" "+inputCropIsoPath  
+           Cmd = resamplingCommand  + cmdPars
+           
            if sys.platform == 'win32':
               #note: in windows, no need to use --launch
               SlicerBinPath = SlicerBinPath +".exe"
@@ -698,13 +730,16 @@ class CervicalVertebraToolsLogic(ScriptedLoadableModuleLogic):
               print(os.path.getsize(resamplingCommand))
               si = subprocess.STARTUPINFO()
               si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-		   #endif
+              Cmd = resamplingCommand  + cmdPars
+              print("Executing ... "+Cmd)
+              cRs = subprocess.call(Cmd , shell = (sys.platform == currentOS) , startupinfo=si )
+           else:
+              print(currentOS)
+              print("Executing ... "+Cmd)
+              cRs = subprocess.call(Cmd , shell = (sys.platform == currentOS) , startupinfo=si )
+           #endif              
 
-           cmdPars = " -i linear -s "+ resampleSpacing + inputCropPath +" "+inputCropIsoPath  
-           Cmd = resamplingCommand  + cmdPars
-           print("Executing ... "+Cmd)
-           #os.system(cmd)
-           subprocess.call(Cmd , shell = (sys.platform == 'linux2') , startupinfo=si )
+           
            #inputCropPath = inputCropIsoPath
            print(" Cropping and resampling are done !!! ")
         #endif
@@ -712,7 +747,6 @@ class CervicalVertebraToolsLogic(ScriptedLoadableModuleLogic):
         #inputCropPath    = inputCropPath.strip("'")
         print(" Cropped image is saved in : [%s]" % inputCropPath)
         print(" Cropping is done !!! ")          
-
         return inputCropPath
   
   #===========================================================================================
@@ -738,7 +772,7 @@ class CervicalVertebraToolsLogic(ScriptedLoadableModuleLogic):
         print (vtID)    
    
         # set the correct models path:
-		
+        
         self.modelCropImgLigPtsPath = self.vtVars['modelCropImgLigPtsTmpPath'] +str(vtID)+self.vtVars['vtPtsLigSuff']+".fcsv"
 
         # we need to run this again in case of external call
@@ -758,7 +792,9 @@ class CervicalVertebraToolsLogic(ScriptedLoadableModuleLogic):
            self.removeOtputsFolderContents()
         #endif
         # results paths        
-        resTransPath  = os.path.join(self.vtVars['outputPath'] ,"TransformParameters.0.txt")
+        resTransPathOld  = os.path.join(self.vtVars['outputPath'] ,"TransformParameters.0.txt")
+        resTransPath=resTransPathOld[0:-6]+'Pars.txt'
+        
         resOldDefPath = os.path.join(self.vtVars['outputPath'] , "deformationField"+self.vtVars['imgType'])
         resDefPath    = os.path.join(self.vtVars['outputPath'] , inputVolumeNode.GetName()+"C"+str(vtID)+"_dFld"+self.vtVars['imgType'])
         
@@ -791,6 +827,8 @@ class CervicalVertebraToolsLogic(ScriptedLoadableModuleLogic):
               #endif
         #endfor
         inputPoint = self.ptRAS2IJK(inputFiducialNode,j,inputVolumeNode)
+        fnm = os.path.join(self.vtVars['outputPath'] , inputVolumeNode.GetName()+"_C"+str(vtID)+"_Pos.fcsv")                           
+        sR = slicer.util.saveNode(inputFiducialNode, fnm )  
 
         #Remove old results
         for node in slicer.util.getNodes():
@@ -812,9 +850,15 @@ class CervicalVertebraToolsLogic(ScriptedLoadableModuleLogic):
         croppedNode.SetName(inputVolumeNode.GetName()+"_C"+str(vtID)+"Crop")                                                        
         print ("************  Register model to cropped input image **********************")
         cTI = self.runElastix(self.vtVars['elastixBinPath'],self.vtVars['intputCropPath'],  modelCropPath, self.vtVars['outputPath'], self.vtVars['parsPath'], self.vtVars['noOutput'], "554")
-       
-		#genrates deformation field 
+        #using Popen with transforimx conflict with irregular filenames   
+        copyfile(resTransPathOld, resTransPath)
+
+        #genrates deformation field 
+        #cTR = self.runTransformix(self.vtVars['transformixBinPath'],modelCropPath, self.vtVars['outputPath'], resTransPath, self.vtVars['noOutput'], "556")
         cTR = self.runTransformix(self.vtVars['transformixBinPath'],modelCropPath, self.vtVars['outputPath'], resTransPath, self.vtVars['noOutput'], "556")
+        
+        print(resOldDefPath)
+        print(resDefPath)
         # rename fthe file:
         os.rename(resOldDefPath,resDefPath)
         
@@ -829,6 +873,8 @@ class CervicalVertebraToolsLogic(ScriptedLoadableModuleLogic):
         vtResultSegNode.SetAndObserveTransformNodeID(vtTransformNode.GetID()) # movingAllMarkupNode should be loaded, the file contains all points
         slicer.vtkSlicerTransformLogic().hardenTransform(vtResultSegNode) # apply the transform
         vtResultSegNode.CreateClosedSurfaceRepresentation() 
+        fnm = os.path.join(self.vtVars['outputPath'] , vtResultSegNode.GetName()+".nrrd")                             
+        sR = slicer.util.saveNode(vtResultSegNode, fnm )  
                      
         if self.s2b(self.vtVars['ligChk']):            
            print ("************  Transform Ligaments Points **********************")
@@ -839,11 +885,13 @@ class CervicalVertebraToolsLogic(ScriptedLoadableModuleLogic):
            vtResultLigPtsNode.GetDisplayNode().SetTextScale(1)
            vtResultLigPtsNode.GetDisplayNode().SetSelectedColor(1,0,0)           
            vtResultLigPtsNode.SetName(resultLigPtsNodeName)
-
            vtResultLigPtsNode.SetAndObserveTransformNodeID(vtTransformNode.GetID()) # movingAllMarkupNode should be loaded, the file contains all points
            slicer.vtkSlicerTransformLogic().hardenTransform(vtResultLigPtsNode) # apply the transform
            # needed in extract scaled model
-           self.vtResultLigPtsNode = vtResultLigPtsNode       
+           self.vtResultLigPtsNode = vtResultLigPtsNode    
+           fnm = os.path.join(self.vtVars['outputPath'] , vtResultLigPtsNode.GetName()+".fcsv")                             
+           sR = slicer.util.saveNode(vtResultLigPtsNode, fnm ) 
+   
         #endif 
         # Display the result if no error
         # Clear vertebra location labels
@@ -1186,7 +1234,7 @@ class CervicalVertebraToolsLogic(ScriptedLoadableModuleLogic):
               if os.path.isfile(filePath):
                  os.remove(filePath)
              #endif
-          #endfor        			
+          #endfor                    
       except Exception as e:
             print("nothing to delete ...")
             print(e)
