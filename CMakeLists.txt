@@ -25,7 +25,7 @@ set(EXTENSION_SCREENSHOTURLS "https://raw.githubusercontent.com/MedicalImageAnal
 find_package(Slicer REQUIRED)
 include(${Slicer_USE_FILE})
 
-set(EXTENSION_DEPENDS SlicerElastix)
+set(EXTENSION_DEPENDS SlicerCochlea)
 
 #-----------------------------------------------------------------------------
 # Extension modules

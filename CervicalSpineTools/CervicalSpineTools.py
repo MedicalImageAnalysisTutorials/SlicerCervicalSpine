@@ -15,11 +15,11 @@
 #      Gradient Descent, Bildverarbeitung feur die Medizin 2018 pp 303-308.            #  
 #  [5] https://mtixnat.uni-koblenz.de                                                 #
 #                                                                                     #
-#  Updated: 14.2.2019                                                                 #    
+#  Updated: 6.6.2019                                                                 #    
 #                                                                                     #  
 #======================================================================================
 
-import os, re , datetime, time ,shutil, unittest, logging, zipfile, urllib2, stat,  inspect
+import os, re , datetime, time ,shutil, unittest, logging, zipfile, urllib.request, stat,  inspect
 import sitkUtils, sys ,math, platform, subprocess  
 import numpy as np, SimpleITK as sitk
 import vtkSegmentationCorePython as vtkSegmentationCore
@@ -36,61 +36,17 @@ from decimal import *
 from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing.dummy import Process  
 
-import SegmentStatistics
-import Elastix
-import CervicalVertebraTools
+import VisSimCommon
 
 #TODO:
-# size, change parameters, change locations
-# wrong position, wrong results for a group.
-
-# cleaning 
-# vertebra info parallel
-# extract scaled model
-# remove temporary node and files
-# test with user input
-
-
-# parallel implementation
-# compare parallel to sequential time
-# locating vertebrae 
-# public module
- 
-# Public version: without detailed segmentation.  
-# Test on Windows
-#    e.g. open folder 
-
-
-
-#   Registration download all stuff for both registration and segmentation.
-#   use registration module and commong functions:  
-#   Remove inverted transform, it was using in case switching moving and fixed 
-# Later:
-# - Checking if all above are needed 
-# - Cleaning, optimizing, commenting.  
-# - Testing in both Windows and Linux. 
-# - Supporting DICOM. 
-# - Supporting illegal filename.  
-# - Using  SlierElastix binaries.   
-# - Visualizing the interimediate steps. 
-# 
-#  
-# Terminology
-#  img         : ITK image 
-#  imgNode     : Slicer Node
-#  imgPath     : wholePath + Filename
-#  imgFnm      : Filename without the path and the extension
-#  imgFileName : Filename without the path
+# parallel process support, check python 3 
+# extend to whole spine
 
 #===================================================================
 #                           Main Class
 #===================================================================
 
 class CervicalSpineTools(ScriptedLoadableModule):
-  """Uses ScriptedLoadableModule base class, available at:
-  https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
-  """
-
   def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
         parent.title = "Cervical Spine Tools"
@@ -109,13 +65,7 @@ class CervicalSpineTools(ScriptedLoadableModule):
 #                           Main Widget
 #===================================================================
 class CervicalSpineToolsWidget(ScriptedLoadableModuleWidget):
-  """Uses ScriptedLoadableModuleWidget base class, available at:
-  https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
-  """
-
-  #VTl = CervicalVertebraTools.CervicalVertebraToolsLogic()
   def setup(self):
-    print(" ")
     print("=======================================================")   
     print("   VisSim Cervical Spine Tools               ")
     print("=======================================================")           
@@ -123,13 +73,11 @@ class CervicalSpineToolsWidget(ScriptedLoadableModuleWidget):
     ScriptedLoadableModuleWidget.setup(self)
     
     # to access logic class functions and setup global variables
-    # Set default VisSIm location in the user home 
-    #TODO: add option user-defined path when installed first time
     self.logic = CervicalSpineToolsLogic()
-    self.VTl = CervicalVertebraTools.CervicalVertebraToolsLogic()    
-    #=================================================================
+    self.vsc = VisSimCommon.VisSimCommonLogic()    
+    #------------------------------------------------------------
     #                     Create the GUI interface
-    #=================================================================   
+    #------------------------------------------------------------
     # Create main collapsible Button 
     self.mainCollapsibleBtn = ctk.ctkCollapsibleButton()
     self.mainCollapsibleBtn.setStyleSheet("ctkCollapsibleButton { background-color: DarkSeaGreen  }")
@@ -170,11 +118,10 @@ class CervicalSpineToolsWidget(ScriptedLoadableModuleWidget):
       
     # Create a textbox for vertebra location
     # TODO activate input IJK values as well
-    Pt = [0,0,0]
     self.inputPointEdt = qt.QLineEdit()
     self.inputPointEdt.setFixedHeight(20)
     self.inputPointEdt.setFixedWidth(100)
-    self.inputPointEdt.setText(str(Pt))
+    self.inputPointEdt.setText("[0,0,0]")
     self.inputPointEdt.connect("textChanged(QString)", self.onInputPointEdtChanged)                                  
     #self.inputPointEdt.connect("textEdited(str)", self.onInputPointEdtEdited)                                  
 
@@ -214,20 +161,17 @@ class CervicalSpineToolsWidget(ScriptedLoadableModuleWidget):
     self.layout.addStretch(1) # Collapsible button is held in place when collapsing/expanding.
     lm = slicer.app.layoutManager();    lm.setLayout(2)
 
-  def cleanup(self):#nothing to do 
-    pass
-  #enddef
-
-
   #------------------------------------------------------------------------
-  #                        Vertebra Selection
+  #                        Define GUI Elements Functions
   #------------------------------------------------------------------------
+
+  # Locate a vertebra
   def onVtIDCoBxChange(self):
       self.inputVolumeNode=self.inputSelectorCoBx.currentNode()
       self.vtID = self.vtIDCoBx.currentIndex + 1   
       self.logic.inputVolumeNode  =  self.inputVolumeNode 
-      nodes = slicer.util.getNodesByClass('vtkMRMLMarkupsFiducialNode')
       self.logic.inputFiducialNode = None
+      nodes = slicer.util.getNodesByClass('vtkMRMLMarkupsFiducialNode')
       for f in nodes:
           if ((f.GetName() == self.inputVolumeNode.GetName()+"_vtLocations") ):
              #replace  current 
@@ -236,26 +180,25 @@ class CervicalSpineToolsWidget(ScriptedLoadableModuleWidget):
              newNode= False
             #endif
       #endfor    
-      self.VTl.setVtID(self.vtID,self.logic.inputVolumeNode ,self.logic.inputFiducialNode )  
-      self.VTl.locateVertebra(self.inputVolumeNode, self.vtID, self.inputPointEdt)    
+      if not hasattr(self.vsc, 'vtVars'):
+         self.vsc.setGlobalVariables(1)
+      #end 
+      self.inputFiducialNode  = self.vsc.locateItem(self.inputVolumeNode,self.inputPointEdt, 0, self.vtID)    
       #self.onInputFiducialBtnClick()
   #enddef
 
   def onInputPointEdtChanged(self,point):
       self.vtID = self.vtIDCoBx.currentIndex + 1   
-      self.VTl.setVtIDfromEdt(point, self.vtID)
+      self.vsc.setVtIDfromEdt(point, self.vtID)
   #enddef
     
-  # resample or not  
-  # TODO: automate the process
-  def onHrChkBxChange(self):      
-      self.logic.setHrChk(self.hrChkBx.checked)
-  #enddef
-
   # extract ligaments points 
   def onLigPtsChkBxChange(self):      
       nodes = slicer.util.getNodesByClass('vtkMRMLMarkupsFiducialNode')
-      self.VTl.setLigChk(self.ligPtsChkBx.checked,nodes)
+      ligName = "_LigPts_C" # + self.vsc.vtVars['vtID']
+      self.vsc.setItemChk('ligChk',self.ligPtsChkBx.checked,ligName, nodes)
+
+      
   #enddef
   
   def onApplyBtnClick(self):
@@ -267,21 +210,21 @@ class CervicalSpineToolsWidget(ScriptedLoadableModuleWidget):
       print("time:" + str(self.stm))
       self.timeLbl.setText("                 Time: 00:00")
     
-      self.vtID = self.vtIDCoBx.currentIndex + 1
-      self.inputNode = self.inputSelectorCoBx.currentNode()
+      vtID = self.vtIDCoBx.currentIndex + 1
+      inputVolumeNode = self.inputSelectorCoBx.currentNode()
       pointSelected = self.inputPointEdt.text =="[0,0,0]"
       try: 
-            if  (not self.inputNode is None) and (not pointSelected) and (not self.logic.inputFiducialNode is None):
-                 # create an option to use IJK point or fidicual node
-                 # inputImage, FiducialPoints, isExteranl 
-                 self.logic.run( self.inputSelectorCoBx.currentNode(),self.logic.inputFiducialNode ,False)         
-  
-            else:
-                print("C1,C4 and C7 points are not selected !")   
+         if (not inputVolumeNode is None) and (not pointSelected) and (not self.inputFiducialNode is None):
+            # create an option to use IJK point or fidicual node
+            # inputImage, FiducialPoint, vertebraID, isExteranl ,C7Editbox
+            self.logic.run( inputVolumeNode ,self.inputFiducialNode )
+         else:
+            print("C1,C4 and C7 points are not selected !")   
       except Exception as e:
                 print("STOPPED: error in input")
                 print(e)
-      #endtry        
+      #endtry   
+           
       self.etm=time.time()
       tm=self.etm - self.stm
       self.timeLbl.setText("Time: "+str(tm)+"  seconds")
@@ -292,39 +235,18 @@ class CervicalSpineToolsWidget(ScriptedLoadableModuleWidget):
   #enddef
        
   def onOpenResultFolderBtnClick(self):
-      output = expanduser("~")+",VisSimTools"   + ",outputs"
-      output = os.path.join(*output.split(","))
-      self.VTl.openResultsFolder(output)
+      self.vsc.openResultsFolder()
   #enddef
 #===================================================================
 #                           Logic
 #===================================================================
 class CervicalSpineToolsLogic(ScriptedLoadableModuleLogic):
-
-  ElastixLogic = Elastix.ElastixLogic()
-  ElastixBinFolder = ElastixLogic.getElastixBinDir()
-  VTl = CervicalVertebraTools.CervicalVertebraToolsLogic()
-  vtVars = VTl.setGlobalVariables(True)
-  VTl.vtVars =vtVars
-  
-  # Check if image is valid
-  def hasImageData(self,inputVolumeNode):
-    #check input image 
-    if not inputVolumeNode:
-      logging.debug('hasImageData failed: no input volume node')
-      return False
-    if inputVolumeNode.GetImageData() is None:
-      logging.debug('hasImageData failed: no image data in input volume node')
-      return False
-    return True
-  #enddef
-
-
-  def getAllVertebraePoints(self,vtIDsLst,inputFiducialNode):
-                
+ 
+  def getAllVertebraePoints(self,vtIDsLst,inputFiducialNode):               
       #TODO: test on all images, the direction should be involved.
       print("Spine: Compute vertebra locations !")
-      if ((vtIDsLst[6][0]!=0) and (vtIDsLst[3][0]!=0) and (vtIDsLst[0][0]!=0)) : 
+      # compute if C1, C4, C7 are avaialble 
+      if ((vtIDsLst[0][0]!=0) and (vtIDsLst[1][0]!=0) and(vtIDsLst[3][0]!=0) and (vtIDsLst[6][0]!=0)) : 
          # we need: 1,4 and 7
          # compute displacement between C4 and C1
          v1x= (vtIDsLst[3][0]-vtIDsLst[0][0])/4 ; print(v1x)
@@ -356,73 +278,78 @@ class CervicalSpineToolsLogic(ScriptedLoadableModuleLogic):
          inputFiducialNode.AddFiducialFromArray(vtIDsLst[5])
          inputFiducialNode.SetNthFiducialLabel(6, "C6")
 
+         fnm = os.path.join(self.vsc.vtVars['outputPath'], inputFiducialNode.GetName()+".fcsv")                             
+         sR = slicer.util.saveNode(inputFiducialNode, fnm ) 
+      else:
+         print("Error, at least locate 4 points: C1, C2, C4, C7!!!")
+         return -1
       #endif
       return vtIDsLst
   #enddef
          
 
-  def  run( self, inputVolumeNode, inputFiducialNode , isExternalCall):
-
-       outputPaths =[]
-       intputCropPaths  =[]
-       inputPoints = []
-       modelCropPaths = []
-       vtIDsLst = []
-
+  def  run( self, inputVolumeNode, inputFiducialNode):
+        
+       self.vsc   = VisSimCommon.VisSimCommonLogic()
+       self.vsc.setGlobalVariables(1)
+       
+       self.inputVolumeNode   = inputVolumeNode
+       self.inputFiducialNode = inputFiducialNode
+       
+       self.outputPaths      = []
+       self.intputCropPaths  = []
+       self.inputPoints      = []
+       self.modelPaths       = []
+       vtIDsLst              = []
+       missingVt             = list(range(1,8))
        rng= 7 # number of vertebra
        for j in range(7):
            vtIDsLst.append([0,0,0])
-           intputCropPaths.append("")
-           inputPoints.append([0,0,0])
+           self.intputCropPaths.append("")
+           self.inputPoints.append([0,0,0])
        #endfor    
-       print(inputFiducialNode.GetNumberOfFiducials())
        for j in range(inputFiducialNode.GetNumberOfFiducials()):
            l= inputFiducialNode.GetNthFiducialLabel(j)
-           print(l);
-           print(l[1]);
            k = int(l[1])
+           missingVt[k-1]= 0 
            inputFiducialNode.GetNthFiducialPosition(j,vtIDsLst[k-1])
        #endfor       
-       vtIDsLst =  self.getAllVertebraePoints(vtIDsLst,inputFiducialNode)       
-  
-       print("get vertebra information")
+               
+       if sum(missingVt)>0:         
+          vtIDsLst =  self.getAllVertebraePoints(vtIDsLst,inputFiducialNode)
+       #endif       
+           
+       #create a table for vertebra information        
        tableName =  inputVolumeNode.GetName()+"_tbl"
-       resultsTableNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLTableNode")
-       resultsTableNode.SetName(tableName)
-       resultsTableNode.AddEmptyRow()    
-       resultsTableNode.GetTable().GetColumn(0).SetName("Vertebra")
-       resultsTableNode.AddColumn()
-       resultsTableNode.GetTable().GetColumn(1).SetName("Volume mm3")
-       resultsTableNode.AddColumn()
-       resultsTableNode.GetTable().GetColumn(2).SetName("CoM X")
-       resultsTableNode.AddColumn()
-       resultsTableNode.GetTable().GetColumn(3).SetName("CoM Y")
-       resultsTableNode.AddColumn()
-       resultsTableNode.GetTable().GetColumn(4).SetName("CoM Z")
-       self.resultsTableNode = resultsTableNode
+       spTblNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLTableNode")
+       spTblNode.SetName(tableName)
+       spTblNode.AddEmptyRow()    
+       spTblNode.GetTable().GetColumn(0).SetName("Vertebra")
+       spTblNode.AddColumn()
+       spTblNode.GetTable().GetColumn(1).SetName("Volume mm3")
+       spTblNode.AddColumn()
+       spTblNode.GetTable().GetColumn(2).SetName("CoM X")
+       spTblNode.AddColumn()
+       spTblNode.GetTable().GetColumn(3).SetName("CoM Y")
+       spTblNode.AddColumn()
+       spTblNode.GetTable().GetColumn(4).SetName("CoM Z")
+       self.spTblNode = spTblNode
        
+       # create output paths
        for i in range(rng):
            #get other points 
            #create a list from the points
            vtID = i+1
-           outputPath = self.vtVars['outputPath']+","+inputVolumeNode.GetName()+"_C"+str(vtID)
+           outputPath = self.vsc.vtVars['outputPath']+","+inputVolumeNode.GetName()+"_C"+str(vtID)
            outputPath = os.path.join(*outputPath.split(","))
-           outputPaths.append( outputPath) 
-           modelCropPath       = self.vtVars['modelPath']+ ',Default' +",Mdl" + self.vtVars['Styp']+ str(vtID)        +self.vtVars['imgType'] 
+           self.outputPaths.append( outputPath) 
+           modelCropPath       = self.vsc.vtVars['modelPath']+ ',Default' +",Mdl" + self.vsc.vtVars['Styp']+ str(vtID)        +self.vsc.vtVars['imgType'] 
            modelCropPath       = os.path.join(*modelCropPath.split(","))
-           modelCropPaths.append(modelCropPath)  
-           if not os.path.exists(outputPaths[i]):
-              os.makedirs(outputPaths[i])
+           self.modelPaths.append(modelCropPath)  
+           if not os.path.exists(self.outputPaths[i]):
+              os.makedirs(self.outputPaths[i])
            #endif
-           print(modelCropPaths[i])
-           print(outputPaths[i])
-       #endfor 
-       self.inputVolumeNode = inputVolumeNode
-       self.inputFiducialNode = inputFiducialNode
-       self.outputPaths =  outputPaths
-       self.modelCropPaths =  modelCropPaths       
-       self.inputPoints =  inputPoints       
-       self.intputCropPaths =  intputCropPaths       
+       #endfor  
 
        # try parallel but slicer crash
        # try if we collect information then run popen
@@ -436,54 +363,66 @@ class CervicalSpineToolsLogic(ScriptedLoadableModuleLogic):
        #---------------------  process ------------------------------------           
        for i in range (rng):
            vtID = i+1 
+           segNodeName       = self.inputVolumeNode.GetName() + "_C"   +str(vtID)+ ".Seg"                 
+           ligPtsNodeName    = self.inputVolumeNode.GetName() + "_C"   +str(vtID)+ "_LigPts"
+           transNodeName     = self.inputVolumeNode.GetName() + "_C"   +str(vtID)+ "_Transform"
+
            self.runCroppingAll(i)
            self.runElastixAll(i)
-           vtTransformNode = self.runTransformixAll(i)
 
-           resultSegNodeName       = self.inputVolumeNode.GetName() + "_Seg_C"+str(vtID)           
-           modelCropSegPath    = self.vtVars['modelPath'] + self.vtVars['segT']+",Mdl"+self.vtVars['Styp']+ str(vtID)+ self.vtVars['sgT'] +self.vtVars['imgType'] 
-           modelCropSegPath    =   os.path.join(*modelCropSegPath.split(","))
-           print(self.vtVars['segT'])
-           print(self.vtVars['sgT'])
-           print(modelCropSegPath)
+           self.resTransPath  = os.path.join(self.outputPaths[i] ,"TransformParameters.0.txt")
+           resOldDefPath = os.path.join(self.outputPaths[i] , "deformationField"+self.vsc.vtVars['imgType'])
+           resDefPath    = os.path.join(self.outputPaths[i] , self.inputVolumeNode.GetName()+"_C"+str(vtID)+"_dFld"+self.vsc.vtVars['imgType'])
+           #remove old result files:
+           if os.path.isfile(resOldDefPath):
+              os.remove(resOldDefPath) 
+           if os.path.isfile(resDefPath):
+              os.remove(resDefPath)
+           
+           self.runTransformixAll(i)
+
+           os.rename(resOldDefPath,resDefPath)
+
+           [success, vtTransformNode] = slicer.util.loadTransform(resDefPath, returnNode = True)
+           vtTransformNode.SetName(transNodeName)
 
            
-           [success, vtResultSegNode] = slicer.util.loadSegmentation(modelCropSegPath, returnNode = True)
-           vtResultSegNode.SetName(resultSegNodeName)
+           modelSegPath   = self.vsc.vtVars['modelPath'] + self.vsc.vtVars['segT']+",Mdl"+self.vsc.vtVars['Styp']+ str(vtID)+ self.vsc.vtVars['sgT'] +self.vsc.vtVars['imgType'] 
+           modelSegPath   =   os.path.join(*modelSegPath.split(","))
+           
+           [success, vtResultSegNode] = slicer.util.loadSegmentation(modelSegPath, returnNode = True)
+           vtResultSegNode.SetName(segNodeName)
            vtResultSegNode.SetAndObserveTransformNodeID(vtTransformNode.GetID()) # movingAllMarkupNode should be loaded, the file contains all points
            slicer.vtkSlicerTransformLogic().hardenTransform(vtResultSegNode) 
            vtResultSegNode.CreateClosedSurfaceRepresentation() 
+           fnm = os.path.join(self.outputPaths[i] , vtResultSegNode.GetName()+".nrrd")                             
+           sR = slicer.util.saveNode(vtResultSegNode, fnm ) 
 
-           if self.VTl.s2b(self.vtVars['ligChk']):            
-              print ("************  Transform Ligaments Points **********************")
-              modelCropImgLigPtsPath = self.vtVars['modelPath'] +self.vtVars['vtPtsLigDir']+","+self.vtVars['Styp']+ str(vtID)+self.vtVars['vtPtsLigSuff']+".fcsv"
+           if self.vsc.s2b(self.vsc.vtVars['ligChk']):            
+              modelCropImgLigPtsPath = self.vsc.vtVars['modelPath'] +self.vsc.vtVars['vtPtsLigDir']+","+self.vsc.vtVars['Styp']+ str(vtID)+self.vsc.vtVars['vtPtsLigSuff']+".fcsv"
               modelCropImgLigPtsPath        = os.path.join(*modelCropImgLigPtsPath.split(","))
-              resultLigPtsNodeName =  self.inputVolumeNode.GetName() + "_LigPts_C"+str(vtID)
-              [success, vtResultLigPtsNode] = slicer.util.loadMarkupsFiducialList  (modelCropImgLigPtsPath, returnNode = True)
-              vtResultLigPtsNode.GetDisplayNode().SetTextScale(1)
-              vtResultLigPtsNode.GetDisplayNode().SetSelectedColor(1,0,0)           
-              vtResultLigPtsNode.SetName(resultLigPtsNodeName)
-              vtResultLigPtsNode.SetAndObserveTransformNodeID(vtTransformNode.GetID()) # movingAllMarkupNode should be loaded, the file contains all points
-              slicer.vtkSlicerTransformLogic().hardenTransform(vtResultLigPtsNode) # apply the transform
+              [success, vtLigPtsNode] = slicer.util.loadMarkupsFiducialList  (modelCropImgLigPtsPath, returnNode = True)
+              vtLigPtsNode.GetDisplayNode().SetSelectedColor(1,0,0)           
+              vtLigPtsNode.GetDisplayNode().SetTextScale(0.5)
+              vtLigPtsNode.SetName(ligPtsNodeName)
+              vtLigPtsNode.SetAndObserveTransformNodeID(vtTransformNode.GetID()) # movingAllMarkupNode should be loaded, the file contains all points
+              slicer.vtkSlicerTransformLogic().hardenTransform(vtLigPtsNode) # apply the transform
               # needed in extract scaled model
-              self.vtResultLigPtsNode = vtResultLigPtsNode
+              self.vtLigPtsNode = vtLigPtsNode
+              fnm = os.path.join(self.outputPaths[i] , vtLigPtsNode.GetName()+".fcsv")                             
+              sR = slicer.util.saveNode(vtLigPtsNode, fnm ) 
            #endif 
-
-           print ("************  get Vertebra Info  **********************")
            self.getVertebraInfoAll( i )
        #endfor
 
-       self.resultsTableNode.RemoveRow(self.resultsTableNode.GetNumberOfRows()-1)   
-       #segStatLogic = SegmentStatistics.SegmentStatisticsLogic()
-       #segStatLogic.showTable(resultsTableNode)
-       slicer.app.layoutManager().setLayout( slicer.modules.tables.logic().GetLayoutWithTable(slicer.app.layoutManager().layout))
-       slicer.app.applicationLogic().GetSelectionNode().SetActiveTableID(self.resultsTableNode.GetID())
-       slicer.app.applicationLogic().PropagateTableSelection()
+       self.spTblNode.RemoveRow(0)   
      
-       self.vtVars['segNodeCoM']= self.VTl.vtVars['segNodeCoM']
+       self.vsc.vtVars['segNodeCoM']= self.vsc.vtVars['segNodeCoM']
        self.vtResultSegNode = vtResultSegNode
-       #slicer.mrmlScene.RemoveNode(croppedNode )
 
+       #Remove temporary files and nodes:
+       self.vsc.removeTmpsFiles()    
+       return vtResultSegNode
   #enddef
 
 
@@ -496,9 +435,10 @@ class CervicalSpineToolsLogic(ScriptedLoadableModuleLogic):
              break
           #endif
       #endfor
-      self.inputPoints[i]=self.VTl.ptRAS2IJK(self.inputFiducialNode,j,self.inputVolumeNode)
+      self.inputPoints[i]=self.vsc.ptRAS2IJK(self.inputFiducialNode,self.inputVolumeNode,j)
       print(self.inputPoints[i])
-      self.intputCropPaths[i]=self.VTl.runCropping(self.inputVolumeNode, self.inputPoints[i],  vtID , self.vtVars['croppingLength'], self.vtVars['RSxyz'],self.vtVars['hrChk'] )
+      self.inputPoints[i] ="["+str(self.inputPoints[i][0])+","+str(self.inputPoints[i][1])+","+str(self.inputPoints[i][2])+"]"
+      self.intputCropPaths[i]=self.vsc.runCropping(self.inputVolumeNode, self.inputPoints[i], self.vsc.vtVars['croppingLength'], self.vsc.vtVars['RSxyz'],self.vsc.vtVars['hrChk'], str(  vtID ) )
       
       print("ii = " +str(i)+ "  img :"+ self.intputCropPaths[i]          )
       print("------------ cropping process: " +str(i)+"  ...complete")
@@ -506,163 +446,102 @@ class CervicalSpineToolsLogic(ScriptedLoadableModuleLogic):
 
   def runElastixAll(self,i):
       vtID = i+1
-      print("------------ elastix process: " +str(i))
-      #self.runElastix(self.vtVars['elastixBinPath'], self.intputCropPaths[i], self.modelCropPaths[i], self.outputPaths[i], self.vtVars['parsPath'] ,self.vtVars['noOutput'], "674")
-      self.VTl.runElastix(self.vtVars['elastixBinPath'], self.intputCropPaths[i], self.modelCropPaths[i], self.outputPaths[i], self.vtVars['parsPath'] ,self.vtVars['noOutput'], "674")
-
-      print("------------ elastix process: " +str(i)+"  ...complete")
+      self.vsc.runElastix(self.vsc.vtVars['elastixBinPath'], self.intputCropPaths[i], self.modelPaths[i], self.outputPaths[i], self.vsc.vtVars['parsPath'] ,self.vsc.vtVars['noOutput'], "674")
   #enddef
 
   def runTransformixAll(self,i):
       vtID = i+1
-      resTransPath  = os.path.join(self.outputPaths[i] ,"TransformParameters.0.txt")
-      resOldDefPath = os.path.join(self.outputPaths[i] , "deformationField"+self.vtVars['imgType'])
-      resDefPath    = os.path.join(self.outputPaths[i] , self.inputVolumeNode.GetName()+"C"+str(vtID)+"_dFld"+self.vtVars['imgType'])
-      #remove old result files:
-      if os.path.isfile(resOldDefPath):
-         os.remove(resOldDefPath) 
-      if os.path.isfile(resDefPath):
-         os.remove(resDefPath)
-        
-      #os.remove(resOldDefPath)
-      #os.remove(resDefPath)
-
-      print("------------ transformix process: " +str(i))
-      #self.runTransformix(self.vtVars['transformixBinPath'] ,self.modelCropPaths[i], self.outputPaths[i], resTransPath, self.vtVars['noOutput'], "1254")
-      self.VTl.runTransformix(self.vtVars['transformixBinPath'] ,self.modelCropPaths[i], self.outputPaths[i], resTransPath, self.vtVars['noOutput'], "1254")
-
-      os.rename(resOldDefPath,resDefPath)
-      resultTransformNodeName = self.inputVolumeNode.GetName()+ "_Transform_C"+str(vtID)
-      [success, vtTransformNode] = slicer.util.loadTransform(resDefPath, returnNode = True)
-      vtTransformNode.SetName(resultTransformNodeName)
-      print("------------ transformix process: " +str(i)+"  ...complete")
-      return vtTransformNode
+      self.vsc.runTransformix(self.vsc.vtVars['transformixBinPath'] ,self.modelPaths[i], self.outputPaths[i], self.resTransPath, self.vsc.vtVars['noOutput'], "1254")
   #enddef
                 
   def getVertebraInfoAll(self,i):
       vtID = i+1
-      segName = self.inputVolumeNode.GetName() + "_Seg_C"+str(vtID)  
-      segNode = slicer.util.getNode(segName)
-      masterName = self.inputVolumeNode.GetName() + "_C"+str(vtID)+"_crop"
-      masterNode = slicer.util.getNode(masterName)
-
-      self.resultsTableNode = self.VTl.getVertebraInfo( segNode, masterNode, vtID, self.resultsTableNode)
-  #enddef
-  
-  def rmvSlicerNode(self,node):
-    slicer.mrmlScene.RemoveNode(node)
-    slicer.mrmlScene.RemoveNode(node.GetDisplayNode())
-    slicer.mrmlScene.RemoveNode(node.GetStorageNode())
+      masterNode = slicer.util.getNode(self.inputVolumeNode.GetName() + "_C"+str(vtID)         )
+      segNode    = slicer.util.getNode(masterNode.GetName() +".Seg"  )
+      self.spTblNode = self.vsc.getItemInfo( segNode, masterNode, self.spTblNode, vtID)      
+      fnm = os.path.join(self.vsc.vtVars['outputPath'], self.spTblNode.GetName()+".tsv")                             
+      sR = slicer.util.saveNode(self.spTblNode, fnm ) 
   #enddef
                               
 #===================================================================
 #                           Test
 #===================================================================
 class CervicalSpineToolsTest(ScriptedLoadableModuleTest):
-  """
-  This is the test case for your scripted module.
-  Uses ScriptedLoadableModuleTest base class, available at:
-  https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
-  """
-  logic =  CervicalSpineToolsLogic()
-  #VTl  = CervicalVertebraTools.CervicalVertebraToolsLogic()
-  #VTl.setGlobalVariables(True)
 
   def setUp(self):
-    """ Do whatever is needed to reset the state - typically a scene clear will be enough.
-    """
-    slicer.mrmlScene.Clear(0)
-    #self.vtVars = self.logic.setGlobalVariables(True)
-        
+      slicer.mrmlScene.Clear(0)
+      self.logic =  CervicalSpineToolsLogic()
+      self.vsc   =  VisSimCommon.VisSimCommonLogic()
+  #endef      
 
   def runTest(self):
-    """Run as few or as many tests as needed here.
-    """
-    self.setUp()
-    self.testSlicerCervicalSpineTools()
+      self.setUp()
+      self.testSlicerCervicalSpineTools()
+  #endef      
 
   def testSlicerCervicalSpineTools(self):
- 
-    # optimize run in parallel 
-    self.delayDisplay("Starting the test")
-    self.stm=time.time()
-    print("time:" + str(self.stm))
+      self.delayDisplay("Starting testSlicerCervicalSpineTools test")
+      self.stm=time.time()
 
-    #msgbox for testing
-    
+      self.vsc.vtVars = self.vsc.setGlobalVariables(1)
 
-    tstImg = 1 # 1 =CT, 2 = MR 
-    if tstImg ==1:
-       imgWebLink = "https://cloud.uni-koblenz-landau.de/s/Mb6JHLdWw5MEPB2/download"
-       fnm = os.path.join(*(self.logic.vtVars['outputPath'] +",imgCT"+self.logic.vtVars['imgType']).split(","))
-       #  CT: define a markup with all locations  
-       c1p = [-5.507 ,  -20.202 , -18.365 ]
-       c2p = [-1.169  , -20.089 , -45.021 ]
-       c4p = [ 0.390  , -11.754 , -74.194 ]
-       c7p = [ 0.390  , -26.445 ,-115.821 ]
-    else:
-       imgWebLink = "https://cloud.uni-koblenz-landau.de/s/ieyDfHpCjHNpZXi/download"
-       fnm = os.path.join(*(self.logic.vtVars['outputPath'] +",imgMR"+self.logic.vtVars['imgType']).split(","))
-       # MR: define a markup with all locations     
-       c1p = [  1.062  ,  53.364 ,  145.951 ]
-       c2p = [ -0.408  ,  44.283 ,  122.994 ]
-       c4p = [ -0.408  ,  36.107 ,   89.941 ]
-       c7p = [ -0.408  ,   3.439 ,   54.432 ]
-    #endif
+      tstImg = 1 # 1 =CT, 2 = MR 
+      if tstImg ==1:
+         imgWebLink = "https://cloud.uni-koblenz-landau.de/s/Mb6JHLdWw5MEPB2/download"
+         fnm = os.path.join(*(self.vsc.vtVars['vissimPath'] +",imgCT"+self.vsc.vtVars['imgType']).split(","))
+         #  CT: define a markup with all locations  
+         c1p = [-5.507 ,  -20.202 , -18.365 ]
+         c2p = [-1.169  , -20.089 , -45.021 ]
+         c4p = [ 0.390  , -11.754 , -74.194 ]
+         c7p = [ 0.390  , -26.445 ,-115.821 ]
+      else:
+         imgWebLink = "https://cloud.uni-koblenz-landau.de/s/ieyDfHpCjHNpZXi/download"
+         fnm = os.path.join(*(self.vsc.vtVars['vissimPath'] +",imgMR"+self.vsc.vtVars['imgType']).split(","))
+         # MR: define a markup with all locations     
+         c1p = [  1.062  ,  53.364 ,  145.951 ]
+         c2p = [ -0.408  ,  44.283 ,  122.994 ]
+         c4p = [ -0.408  ,  36.107 ,   89.941 ]
+         c7p = [ -0.408  ,   3.439 ,   54.432 ]
+      #endif
         
-    # don't download if already downloaded                       
-    if not os.path.exists(fnm):
-       try:         
-           print("Downloading vertebra sample image ...")
-           import urllib
-           urllib.urlretrieve (imgWebLink ,fnm )
-       except Exception as e:
-              print("Error: can not download sample file  ...")
-              print(e)   
-              return -1
-       #end try-except 
-    #endif
+      # don't download if already downloaded      
+      print(fnm)                 
+      if not os.path.exists(fnm):
+         try:         
+             print("Downloading vertebra sample image ...")
+             urllib.request.urlretrieve (imgWebLink ,fnm )
+         except Exception as e:
+             print("Error: can not download sample file  ...")
+             print(e)   
+             return -1
+         #end try-except 
+      #endif
+        
+      [success, inputVolumeNode] = slicer.util.loadVolume( fnm, returnNode=True)
     
-    # remove old nodes 
-    nodes = slicer.util.getNodesByClass('vtkMRMLMarkupsFiducialNode')
-    for f in nodes:
-       if ((f.GetName() == "VertebraLocationPoint") ):
-           slicer.mrmlScene.RemoveNode(f)
-       #endif
-    #endfor 
-    nodes = slicer.util.getNodesByClass('vtkScalarVolumeNode')
-    for f in nodes:
-       if (f.GetName() ==  "imgA"):
-           slicer.mrmlScene.RemoveNode(f)
-       #endif
-    #endfor 
-    
-     
-    [success, inputVolumeNode] = slicer.util.loadVolume( fnm, returnNode=True)
-    
-    inputFiducialNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
-    inputFiducialNode.CreateDefaultDisplayNodes()
-    #TODO: change the name to points 
-    inputFiducialNode.SetName("VertebraLocationPoint")  
-    inputFiducialNode.AddFiducialFromArray(c1p)
-    inputFiducialNode.SetNthFiducialLabel(0, "C1")
-    inputFiducialNode.AddFiducialFromArray(c2p)
-    inputFiducialNode.SetNthFiducialLabel(1, "C2")
-    inputFiducialNode.AddFiducialFromArray(c4p)
-    inputFiducialNode.SetNthFiducialLabel(2, "C4")
-    inputFiducialNode.AddFiducialFromArray(c7p)
-    inputFiducialNode.SetNthFiducialLabel(3, "C7")
+      inputFiducialNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
+      inputFiducialNode.CreateDefaultDisplayNodes()
+      #TODO: change the name to points 
+      inputFiducialNode.SetName("VertebraLocationPoint")  
+      inputFiducialNode.AddFiducialFromArray(c1p)
+      inputFiducialNode.SetNthFiducialLabel(0, "C1")
+      inputFiducialNode.AddFiducialFromArray(c2p)
+      inputFiducialNode.SetNthFiducialLabel(1, "C2")
+      inputFiducialNode.AddFiducialFromArray(c4p)
+      inputFiducialNode.SetNthFiducialLabel(2, "C4")
+      inputFiducialNode.AddFiducialFromArray(c7p)
+      inputFiducialNode.SetNthFiducialLabel(3, "C7")
 
-    # call run with the downloaded image and the locations
-    isExt = True
-    # run( self,         inputVolumeNode, inputFiducialNode      , isExternalCall):
-    self.logic.run(inputVolumeNode, inputFiducialNode , isExt )
+      vtSegNode = self.logic.run(inputVolumeNode, inputFiducialNode )
     
-    self.etm=time.time()
-    tm=self.etm - self.stm
-    print("Time: "+str(tm)+"  seconds")
+      # Display
+      self.vsc.dispSeg(inputVolumeNode,vtSegNode,34) # 34: 4up table layout
 
-    self.delayDisplay('Test passed!')
+      self.etm=time.time()
+      tm=self.etm - self.stm
+      print("Time: "+str(tm)+"  seconds")
+
+      self.delayDisplay('Test testSlicerCervicalSpineTools passed!')
   #enddef
 
  
