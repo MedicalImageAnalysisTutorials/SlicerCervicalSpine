@@ -12,14 +12,14 @@
 #      IEEE International Symposium on Biomedical Imaging (ISBI), Venice, Italy.      #
 #  [4] Ibraheem Al-Dhamari, Sabine Bauer, Dietrich Paulus, (2018), Automatic          #
 #      Multi-modal Cervical Spine Image Atlas Segmentation Using Adaptive Stochastic  #
-#      Gradient Descent, Bildverarbeitung feur die Medizin 2018 pp 303-308.            #  
+#      Gradient Descent, Bildverarbeitung feur die Medizin 2018 pp 303-308.           #  
 #  [5] https://mtixnat.uni-koblenz.de                                                 #
-#                                                                                     #
-#  Updated: 6.6.2019                                                                 #    
-#                                                                                     #  
-#======================================================================================
+#-------------------------------------------------------------------------------------#
+#  Slicer 4.10                                                                        #    
+#  Updated: 17.6.2019                                                                 #    
+#=====================================================================================#
 
-import os, re , datetime, time ,shutil, unittest, logging, zipfile, urllib.request, stat,  inspect
+import os, re , datetime, time ,shutil, unittest, logging, zipfile, urllib2, stat,  inspect
 import sitkUtils, sys ,math, platform, subprocess  
 import numpy as np, SimpleITK as sitk
 import vtkSegmentationCorePython as vtkSegmentationCore
@@ -288,141 +288,137 @@ class CervicalSpineToolsLogic(ScriptedLoadableModuleLogic):
   #enddef
          
 
-  def  run( self, inputVolumeNode, inputFiducialNode):
-        
-       self.vsc   = VisSimCommon.VisSimCommonLogic()
-       self.vsc.setGlobalVariables(1)
-       
-       self.inputVolumeNode   = inputVolumeNode
-       self.inputFiducialNode = inputFiducialNode
-       
-       self.outputPaths      = []
-       self.intputCropPaths  = []
-       self.inputPoints      = []
-       self.modelPaths       = []
-       vtIDsLst              = []
-       missingVt             = list(range(1,8))
-       rng= 7 # number of vertebra
-       for j in range(7):
-           vtIDsLst.append([0,0,0])
-           self.intputCropPaths.append("")
-           self.inputPoints.append([0,0,0])
-       #endfor    
-       for j in range(inputFiducialNode.GetNumberOfFiducials()):
+  def run( self, inputVolumeNode, inputFiducialNode):       
+      self.vsc   = VisSimCommon.VisSimCommonLogic()
+      self.vsc.setGlobalVariables(1)
+      self.inputVolumeNode   = inputVolumeNode
+      self.inputFiducialNode = inputFiducialNode
+      self.tableName =  inputVolumeNode.GetName()+"_tbl"
+      self.outputPaths      = []
+      self.intputCropPaths  = []
+      self.inputPoints      = []
+      self.modelPaths       = []
+      vtIDsLst              = []
+      missingVt             = range(1,8)
+      rng= 7 # number of vertebra
+      for j in range(7):
+          vtIDsLst.append([0,0,0])
+          self.intputCropPaths.append("")
+          self.inputPoints.append([0,0,0])
+      #endfor    
+      for j in range(inputFiducialNode.GetNumberOfFiducials()):
            l= inputFiducialNode.GetNthFiducialLabel(j)
            k = int(l[1])
            missingVt[k-1]= 0 
            inputFiducialNode.GetNthFiducialPosition(j,vtIDsLst[k-1])
-       #endfor       
+      #endfor       
                
-       if sum(missingVt)>0:         
+      if sum(missingVt)>0:         
           vtIDsLst =  self.getAllVertebraePoints(vtIDsLst,inputFiducialNode)
-       #endif       
+      #endif       
            
-       #create a table for vertebra information        
-       tableName =  inputVolumeNode.GetName()+"_tbl"
-       spTblNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLTableNode")
-       spTblNode.SetName(tableName)
-       spTblNode.AddEmptyRow()    
-       spTblNode.GetTable().GetColumn(0).SetName("Vertebra")
-       spTblNode.AddColumn()
-       spTblNode.GetTable().GetColumn(1).SetName("Volume mm3")
-       spTblNode.AddColumn()
-       spTblNode.GetTable().GetColumn(2).SetName("CoM X")
-       spTblNode.AddColumn()
-       spTblNode.GetTable().GetColumn(3).SetName("CoM Y")
-       spTblNode.AddColumn()
-       spTblNode.GetTable().GetColumn(4).SetName("CoM Z")
-       self.spTblNode = spTblNode
        
-       # create output paths
-       for i in range(rng):
-           #get other points 
-           #create a list from the points
-           vtID = i+1
-           outputPath = self.vsc.vtVars['outputPath']+","+inputVolumeNode.GetName()+"_C"+str(vtID)
-           outputPath = os.path.join(*outputPath.split(","))
-           self.outputPaths.append( outputPath) 
-           modelCropPath       = self.vsc.vtVars['modelPath']+ ',Default' +",Mdl" + self.vsc.vtVars['Styp']+ str(vtID)        +self.vsc.vtVars['imgType'] 
-           modelCropPath       = os.path.join(*modelCropPath.split(","))
-           self.modelPaths.append(modelCropPath)  
-           if not os.path.exists(self.outputPaths[i]):
+      # create output paths
+      for i in range(rng):
+          #get other points 
+          #create a list from the points
+          vtID = i+1
+          outputPath = self.vsc.vtVars['outputPath']+","+inputVolumeNode.GetName()+"_C"+str(vtID)
+          outputPath = os.path.join(*outputPath.split(","))
+          self.outputPaths.append( outputPath) 
+          modelCropPath       = self.vsc.vtVars['modelPath']+ ',Default' +",Mdl" + self.vsc.vtVars['Styp']+ str(vtID)        +self.vsc.vtVars['imgType'] 
+          modelCropPath       = os.path.join(*modelCropPath.split(","))
+          self.modelPaths.append(modelCropPath)  
+          if not os.path.exists(self.outputPaths[i]):
               os.makedirs(self.outputPaths[i])
-           #endif
-       #endfor  
+          #endif
+      #endfor  
 
-       # try parallel but slicer crash
-       # try if we collect information then run popen
-       """
-       i=range(rng)
-       pool = ThreadPool(9)
-       b=pool.map(self.runCroppingAll,i)
-       pool.close()
-       pool.join()
-       """
-       #---------------------  process ------------------------------------           
-       for i in range (rng):
-           vtID = i+1 
-           segNodeName       = self.inputVolumeNode.GetName() + "_C"   +str(vtID)+ ".Seg"                 
-           ligPtsNodeName    = self.inputVolumeNode.GetName() + "_C"   +str(vtID)+ "_LigPts"
-           transNodeName     = self.inputVolumeNode.GetName() + "_C"   +str(vtID)+ "_Transform"
+      # try parallel but slicer crash
+      # try if we collect information then run popen
+      """
+      i=range(rng)
+      pool = ThreadPool(9)
+      b=pool.map(self.runCroppingAll,i)
+      pool.close()
+      pool.join()
+      """
+      #---------------------  process ------------------------------------           
+      for i in range (rng):
+          vtID = i+1 
+          segNodeName       = self.inputVolumeNode.GetName() + "_C"   +str(vtID)+ "S.seg"                 
+          ligPtsNodeName    = self.inputVolumeNode.GetName() + "_C"   +str(vtID)+ "_LigPts"
+          transNodeName     = self.inputVolumeNode.GetName() + "_C"   +str(vtID)+ "_Transform"
+          self.runCroppingAll(i)
+          self.runElastixAll(i)
 
-           self.runCroppingAll(i)
-           self.runElastixAll(i)
+          self.resTransPath  = os.path.join(self.outputPaths[i] ,"TransformParameters.0.txt")
+          resOldDefPath = os.path.join(self.outputPaths[i] , "deformationField"+self.vsc.vtVars['imgType'])
+          resDefPath    = os.path.join(self.outputPaths[i] , self.inputVolumeNode.GetName()+"_C"+str(vtID)+"_dFld"+self.vsc.vtVars['imgType'])
+          #remove old result files:
+          if os.path.isfile(resOldDefPath):
+             os.remove(resOldDefPath) 
+          if os.path.isfile(resDefPath):
+             os.remove(resDefPath)
+          
+          self.runTransformixAll(i)
 
-           self.resTransPath  = os.path.join(self.outputPaths[i] ,"TransformParameters.0.txt")
-           resOldDefPath = os.path.join(self.outputPaths[i] , "deformationField"+self.vsc.vtVars['imgType'])
-           resDefPath    = os.path.join(self.outputPaths[i] , self.inputVolumeNode.GetName()+"_C"+str(vtID)+"_dFld"+self.vsc.vtVars['imgType'])
-           #remove old result files:
-           if os.path.isfile(resOldDefPath):
-              os.remove(resOldDefPath) 
-           if os.path.isfile(resDefPath):
-              os.remove(resDefPath)
+          os.rename(resOldDefPath,resDefPath)
+
+          [success, vtTransformNode] = slicer.util.loadTransform(resDefPath, returnNode = True)
+          vtTransformNode.SetName(transNodeName)
+
            
-           self.runTransformixAll(i)
-
-           os.rename(resOldDefPath,resDefPath)
-
-           [success, vtTransformNode] = slicer.util.loadTransform(resDefPath, returnNode = True)
-           vtTransformNode.SetName(transNodeName)
-
+          modelSegPath   = self.vsc.vtVars['modelPath'] + self.vsc.vtVars['segT']+",Mdl"+self.vsc.vtVars['Styp']+ str(vtID)+ self.vsc.vtVars['sgT'] +self.vsc.vtVars['imgType'] 
+          modelSegPath   =   os.path.join(*modelSegPath.split(","))
            
-           modelSegPath   = self.vsc.vtVars['modelPath'] + self.vsc.vtVars['segT']+",Mdl"+self.vsc.vtVars['Styp']+ str(vtID)+ self.vsc.vtVars['sgT'] +self.vsc.vtVars['imgType'] 
-           modelSegPath   =   os.path.join(*modelSegPath.split(","))
-           
-           [success, vtResultSegNode] = slicer.util.loadSegmentation(modelSegPath, returnNode = True)
-           vtResultSegNode.SetName(segNodeName)
-           vtResultSegNode.SetAndObserveTransformNodeID(vtTransformNode.GetID()) # movingAllMarkupNode should be loaded, the file contains all points
-           slicer.vtkSlicerTransformLogic().hardenTransform(vtResultSegNode) 
-           vtResultSegNode.CreateClosedSurfaceRepresentation() 
-           fnm = os.path.join(self.outputPaths[i] , vtResultSegNode.GetName()+".nrrd")                             
-           sR = slicer.util.saveNode(vtResultSegNode, fnm ) 
+          [success, vtResultSegNode] = slicer.util.loadSegmentation(modelSegPath, returnNode = True)
+          vtResultSegNode.SetName(segNodeName)
+          vtResultSegNode.SetAndObserveTransformNodeID(vtTransformNode.GetID()) # movingAllMarkupNode should be loaded, the file contains all points
+          slicer.vtkSlicerTransformLogic().hardenTransform(vtResultSegNode) 
+          vtResultSegNode.CreateClosedSurfaceRepresentation() 
+          fnm = os.path.join(self.outputPaths[i] , vtResultSegNode.GetName()+".nrrd")                             
+          sR = slicer.util.saveNode(vtResultSegNode, fnm ) 
 
-           if self.vsc.s2b(self.vsc.vtVars['ligChk']):            
-              modelCropImgLigPtsPath = self.vsc.vtVars['modelPath'] +self.vsc.vtVars['vtPtsLigDir']+","+self.vsc.vtVars['Styp']+ str(vtID)+self.vsc.vtVars['vtPtsLigSuff']+".fcsv"
-              modelCropImgLigPtsPath        = os.path.join(*modelCropImgLigPtsPath.split(","))
-              [success, vtLigPtsNode] = slicer.util.loadMarkupsFiducialList  (modelCropImgLigPtsPath, returnNode = True)
-              vtLigPtsNode.GetDisplayNode().SetSelectedColor(1,0,0)           
-              vtLigPtsNode.GetDisplayNode().SetTextScale(0.5)
-              vtLigPtsNode.SetName(ligPtsNodeName)
-              vtLigPtsNode.SetAndObserveTransformNodeID(vtTransformNode.GetID()) # movingAllMarkupNode should be loaded, the file contains all points
-              slicer.vtkSlicerTransformLogic().hardenTransform(vtLigPtsNode) # apply the transform
-              # needed in extract scaled model
-              self.vtLigPtsNode = vtLigPtsNode
-              fnm = os.path.join(self.outputPaths[i] , vtLigPtsNode.GetName()+".fcsv")                             
-              sR = slicer.util.saveNode(vtLigPtsNode, fnm ) 
-           #endif 
-           self.getVertebraInfoAll( i )
-       #endfor
+          if self.vsc.s2b(self.vsc.vtVars['ligChk']):            
+             modelCropImgLigPtsPath = self.vsc.vtVars['modelPath'] +self.vsc.vtVars['vtPtsLigDir']+","+self.vsc.vtVars['Styp']+ str(vtID)+self.vsc.vtVars['vtPtsLigSuff']+".fcsv"
+             modelCropImgLigPtsPath        = os.path.join(*modelCropImgLigPtsPath.split(","))
+             [success, vtLigPtsNode] = slicer.util.loadMarkupsFiducialList  (modelCropImgLigPtsPath, returnNode = True)
+             vtLigPtsNode.GetDisplayNode().SetSelectedColor(1,0,0)           
+             vtLigPtsNode.GetDisplayNode().SetTextScale(0.5)
+             vtLigPtsNode.SetName(ligPtsNodeName)
+             vtLigPtsNode.SetAndObserveTransformNodeID(vtTransformNode.GetID()) # movingAllMarkupNode should be loaded, the file contains all points
+             slicer.vtkSlicerTransformLogic().hardenTransform(vtLigPtsNode) # apply the transform
+             # needed in extract scaled model
+             self.vtLigPtsNode = vtLigPtsNode
+             fnm = os.path.join(self.outputPaths[i] , vtLigPtsNode.GetName()+".fcsv")                             
+             sR = slicer.util.saveNode(vtLigPtsNode, fnm ) 
+          #endif 
 
-       self.spTblNode.RemoveRow(0)   
+          self.masterNode = slicer.util.getNode(self.inputVolumeNode.GetName() + "_C"+str(vtID)         )
+          self.segNode    = slicer.util.getNode(segNodeName  )
+          print(self.tableName)
+          print( self.masterNode.GetName()[0:-3]+"_tbl")
+          try:
+             # if table exists, don't create a new one.
+             self.spTblNode =  slicer.util.getNode(self.tableName)
+             print("table is found .........................................")
+          except:
+             #table will be created in getItemInfo                
+             self.spTblNode= None
+             print("table is NOT found .........................................")
+          #endtry
+          #return -1
+          self.getVertebraInfoAll( i )
+      #endfor
+
+      self.spTblNode.RemoveRow(0)   
      
-       self.vsc.vtVars['segNodeCoM']= self.vsc.vtVars['segNodeCoM']
-       self.vtResultSegNode = vtResultSegNode
-
-       #Remove temporary files and nodes:
-       self.vsc.removeTmpsFiles()    
-       return vtResultSegNode
+      self.vsc.vtVars['segNodeCoM']= self.vsc.vtVars['segNodeCoM']
+      self.vtResultSegNode = vtResultSegNode
+      #Remove temporary files and nodes:
+      self.vsc.removeTmpsFiles()    
+      return vtResultSegNode
   #enddef
 
 
@@ -456,9 +452,7 @@ class CervicalSpineToolsLogic(ScriptedLoadableModuleLogic):
                 
   def getVertebraInfoAll(self,i):
       vtID = i+1
-      masterNode = slicer.util.getNode(self.inputVolumeNode.GetName() + "_C"+str(vtID)         )
-      segNode    = slicer.util.getNode(masterNode.GetName() +".Seg"  )
-      self.spTblNode = self.vsc.getItemInfo( segNode, masterNode, self.spTblNode, vtID)      
+      self.spTblNode = self.vsc.getItemInfo( self.segNode  , self.masterNode , self.spTblNode, vtID)      
       fnm = os.path.join(self.vsc.vtVars['outputPath'], self.spTblNode.GetName()+".tsv")                             
       sR = slicer.util.saveNode(self.spTblNode, fnm ) 
   #enddef
@@ -509,7 +503,8 @@ class CervicalSpineToolsTest(ScriptedLoadableModuleTest):
       if not os.path.exists(fnm):
          try:         
              print("Downloading vertebra sample image ...")
-             urllib.request.urlretrieve (imgWebLink ,fnm )
+             import urllib
+             urllib.urlretrieve (imgWebLink ,fnm )
          except Exception as e:
              print("Error: can not download sample file  ...")
              print(e)   

@@ -14,13 +14,12 @@
 #      Multi-modal Cervical Spine Image Atlas Segmentation Using Adaptive Stochastic  #
 #      Gradient Descent, Bildverarbeitung feur die Medizin 2018 pp 303-308.           #  
 #  [5] https://mtixnat.uni-koblenz.de                                                 #
-#              
-#                                                                         #
-#  Updated: 6.6.2019                                                                 #    
-#                                                                                     #  
-#======================================================================================
+#-------------------------------------------------------------------------------------#
+#  Slicer 4.10                                                                        #    
+#  Updated: 17.6.2019                                                                 #    
+#=====================================================================================#
 
-import os, re , datetime, time ,shutil, unittest, logging, zipfile, urllib.request, stat,  inspect, glob
+import os, re , datetime, time ,shutil, unittest, logging, zipfile, urllib,urllib2, stat,  inspect, glob
 import sitkUtils, sys ,math, platform, subprocess  
 import numpy as np, SimpleITK as sitk
 import vtkSegmentationCorePython as vtkSegmentationCore
@@ -444,7 +443,7 @@ class CervicalVertebraToolsTest(ScriptedLoadableModuleTest):
       if not os.path.exists(imgPath):
                try:         
                    print("Downloading a vertebra sample image ...")
-                   urllib.request.urlretrieve (imgWebLink ,imgPath )
+                   urllib.urlretrieve (imgWebLink ,imgPath )
                except Exception as e:
                       print("Error: can not download sample file  ...")
                       print(e)   
@@ -497,3 +496,4 @@ class CervicalVertebraToolsTest(ScriptedLoadableModuleTest):
     
       self.delayDisplay('Test testSlicerCervicalVertebraTools passed!')
   #enddef
+#endclass
