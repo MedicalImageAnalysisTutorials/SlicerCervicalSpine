@@ -16,7 +16,7 @@
 #  [5] https://mtixnat.uni-koblenz.de                                                 #
 #-------------------------------------------------------------------------------------#
 #  Slicer 4.10                                                                        #    
-#  Updated: 17.6.2019                                                                 #    
+#  Updated: 18.6.2019                                                                 #    
 #=====================================================================================#
 
 import os, re , datetime, time ,shutil, unittest, logging, zipfile, urllib2, stat,  inspect
@@ -35,6 +35,7 @@ from shutil import copyfile
 from decimal import *
 from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing.dummy import Process  
+import SampleData
 
 import VisSimCommon
 
@@ -209,7 +210,7 @@ class CervicalSpineToolsWidget(ScriptedLoadableModuleWidget):
       self.stm=time.time()
       print("time:" + str(self.stm))
       self.timeLbl.setText("                 Time: 00:00")
-    
+      methodID = 0
       vtID = self.vtIDCoBx.currentIndex + 1
       inputVolumeNode = self.inputSelectorCoBx.currentNode()
       pointSelected = self.inputPointEdt.text =="[0,0,0]"
@@ -217,7 +218,10 @@ class CervicalSpineToolsWidget(ScriptedLoadableModuleWidget):
          if (not inputVolumeNode is None) and (not pointSelected) and (not self.inputFiducialNode is None):
             # create an option to use IJK point or fidicual node
             # inputImage, FiducialPoint, vertebraID, isExteranl ,C7Editbox
-            self.logic.run( inputVolumeNode ,self.inputFiducialNode )
+            vtSegNode = self.logic.run( inputVolumeNode ,self.inputFiducialNode, methodID )
+            print("display the result")
+            self.vsc.dispSeg(inputVolumeNode,vtSegNode,34) # 34: 4up table layout
+
          else:
             print("C1,C4 and C7 points are not selected !")   
       except Exception as e:
@@ -288,7 +292,7 @@ class CervicalSpineToolsLogic(ScriptedLoadableModuleLogic):
   #enddef
          
 
-  def run( self, inputVolumeNode, inputFiducialNode):       
+  def run( self, inputVolumeNode, inputFiducialNode, methodID):       
       self.vsc   = VisSimCommon.VisSimCommonLogic()
       self.vsc.setGlobalVariables(1)
       self.inputVolumeNode   = inputVolumeNode
@@ -464,73 +468,91 @@ class CervicalSpineToolsTest(ScriptedLoadableModuleTest):
 
   def setUp(self):
       slicer.mrmlScene.Clear(0)
-      self.logic =  CervicalSpineToolsLogic()
-      self.vsc   =  VisSimCommon.VisSimCommonLogic()
   #endef      
 
   def runTest(self):
       self.setUp()
       self.testSlicerCervicalSpineTools()
-  #endef      
+  #enddef
 
-  def testSlicerCervicalSpineTools(self):
-      self.delayDisplay("Starting testSlicerCervicalSpineTools test")
+  def testSlicerCervicalSpineTools(self, imgPath=None , inputPoints=None, methodID=None):
+      self.delayDisplay("Starting testSlicerCervicalSpineTools")
+
+      # record duration of the test    
       self.stm=time.time()
 
+      self.vsc   = VisSimCommon.VisSimCommonLogic()   
       self.vsc.vtVars = self.vsc.setGlobalVariables(1)
+      self.logic = CervicalSpineToolsLogic()
+ 
+      if methodID is None:
+          methodID =0 # default
+      #endif
 
-      tstImg = 1 # 1 =CT, 2 = MR 
-      if tstImg ==1:
-         imgWebLink = "https://cloud.uni-koblenz-landau.de/s/Mb6JHLdWw5MEPB2/download"
-         fnm = os.path.join(*(self.vsc.vtVars['vissimPath'] +",imgCT"+self.vsc.vtVars['imgType']).split(","))
-         #  CT: define a markup with all locations  
-         c1p = [-5.507 ,  -20.202 , -18.365 ]
-         c2p = [-1.169  , -20.089 , -45.021 ]
-         c4p = [ 0.390  , -11.754 , -74.194 ]
-         c7p = [ 0.390  , -26.445 ,-115.821 ]
+      if imgPath is None:
+         tstImg = 2 # 1 =CT, 2 = MR 
+         if tstImg ==1:
+            #TODO: add alternative image links 
+            nodeNames='Bc11702'   
+            fileNames='Bc11702.nrrd'
+            uris     ="https://cloud.uni-koblenz-landau.de/s/Mb6JHLdWw5MEPB2/download"
+            checksums='f2e6623cf11566179291e648982b46a3bc6aba9abe388e24fda57e54de98eb7c'
+            #  CT: define a markup with all locations  
+            c1p = [-5.507 ,  -20.202 , -18.365 ]
+            c2p = [-1.169  , -20.089 , -45.021 ]
+            c4p = [ 0.390  , -11.754 , -74.194 ]
+            c7p = [ 0.390  , -26.445 ,-115.821 ]
+         else:
+            nodeNames='D0040100402_3D'
+            fileNames='D0040100402_3D.nrrd'
+            uris     ="https://cloud.uni-koblenz-landau.de/s/ieyDfHpCjHNpZXi/download"
+            checksums='a034ae045e16bdb1356e6cd9eec32ad2e3744f7f849a24abfe56cce5781dec98'
+            # MR: define a markup with all locations     
+            c1p = [  1.062  ,  53.364 ,  145.951 ]
+            c2p = [ -0.408  ,  44.283 ,  122.994 ]
+            c4p = [ -0.408  ,  36.107 ,   89.941 ]
+            c7p = [ -0.408  ,   3.439 ,   54.432 ]
+         #endifelse
+         tmpVolumeNode =  SampleData.downloadFromURL(uris, fileNames, nodeNames, checksums )[0]
+         imgPath  =  os.path.join(slicer.mrmlScene.GetCacheManager().GetRemoteCacheDirectory(),fileNames)
+         slicer.mrmlScene.RemoveNode(tmpVolumeNode)
+         inputPoints = [c1p,c2p,c4p,c7p]
       else:
-         imgWebLink = "https://cloud.uni-koblenz-landau.de/s/ieyDfHpCjHNpZXi/download"
-         fnm = os.path.join(*(self.vsc.vtVars['vissimPath'] +",imgMR"+self.vsc.vtVars['imgType']).split(","))
-         # MR: define a markup with all locations     
-         c1p = [  1.062  ,  53.364 ,  145.951 ]
-         c2p = [ -0.408  ,  44.283 ,  122.994 ]
-         c4p = [ -0.408  ,  36.107 ,   89.941 ]
-         c7p = [ -0.408  ,   3.439 ,   54.432 ]
-      #endif
-        
-      # don't download if already downloaded      
-      print(fnm)                 
-      if not os.path.exists(fnm):
-         try:         
-             print("Downloading vertebra sample image ...")
-             import urllib
-             urllib.urlretrieve (imgWebLink ,fnm )
-         except Exception as e:
-             print("Error: can not download sample file  ...")
-             print(e)   
-             return -1
-         #end try-except 
-      #endif
-        
-      [success, inputVolumeNode] = slicer.util.loadVolume( fnm, returnNode=True)
-    
+           nodeNames = os.path.splitext(os.path.basename(imgPath))[0]
+      #endif 
+      [success, inputVolumeNode]  = slicer.util.loadVolume(imgPath, returnNode=True)
+      inputVolumeNode.SetName(nodeNames)
+
       inputFiducialNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
       inputFiducialNode.CreateDefaultDisplayNodes()
       #TODO: change the name to points 
-      inputFiducialNode.SetName("VertebraLocationPoint")  
-      inputFiducialNode.AddFiducialFromArray(c1p)
-      inputFiducialNode.SetNthFiducialLabel(0, "C1")
-      inputFiducialNode.AddFiducialFromArray(c2p)
-      inputFiducialNode.SetNthFiducialLabel(1, "C2")
-      inputFiducialNode.AddFiducialFromArray(c4p)
-      inputFiducialNode.SetNthFiducialLabel(2, "C4")
-      inputFiducialNode.AddFiducialFromArray(c7p)
-      inputFiducialNode.SetNthFiducialLabel(3, "C7")
+      FourPoints=[1,2,4,7]
+      inputFiducialNode.SetName("VertebraLocationPoint")
+      numberOfPoints = len(inputPoints)
+      for i in range(numberOfPoints):
+          print(i)
+          inputFiducialNode.AddFiducialFromArray(inputPoints[i])
+          if  numberOfPoints == 4:
+              inputFiducialNode.SetNthFiducialLabel(i, "C"+str(FourPoints[i]))
+              print( "C"+str(FourPoints[i]))
+          elif numberOfPoints == 7: 
+              inputFiducialNode.SetNthFiducialLabel(i, "C1" +str(i+1))
+          
+          elif (numberOfPoints<4)or (numberOfPoints>7):
+              print("Error: wrong number of input points, please provide 4-7 points")  
+              return -1
+          #endifelse    
+      #endfor
 
-      vtSegNode = self.logic.run(inputVolumeNode, inputFiducialNode )
+      #Run Segmentation 
+      vtSegNode = self.logic.run(inputVolumeNode, inputFiducialNode, methodID )
     
       # Display
-      self.vsc.dispSeg(inputVolumeNode,vtSegNode,34) # 34: 4up table layout
+      try:
+        self.vsc.dispSeg(inputVolumeNode,vtSegNode,34) # 34: 4up table layout
+      except:
+        print("No display is available! probably an external call.")  
+      #endtry     
 
       self.etm=time.time()
       tm=self.etm - self.stm

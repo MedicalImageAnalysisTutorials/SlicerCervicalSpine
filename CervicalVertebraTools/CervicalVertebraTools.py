@@ -16,7 +16,7 @@
 #  [5] https://mtixnat.uni-koblenz.de                                                 #
 #-------------------------------------------------------------------------------------#
 #  Slicer 4.10                                                                        #    
-#  Updated: 17.6.2019                                                                 #    
+#  Updated: 18.6.2019                                                                 #    
 #=====================================================================================#
 
 import os, re , datetime, time ,shutil, unittest, logging, zipfile, urllib,urllib2, stat,  inspect, glob
@@ -33,6 +33,7 @@ from os.path import basename
 from PythonQt import BoolResult
 from shutil import copyfile
 from decimal import *
+import SampleData
 
 #Dependant Modules
 import VisSimCommon #Dependant Modules
@@ -227,7 +228,7 @@ class CervicalVertebraToolsWidget(ScriptedLoadableModuleWidget):
       self.stm=time.time()
       print("time:" + str(self.stm))
       self.timeLbl.setText("                 Time: 00:00")
-
+      methodID =0
       vtID = self.vtIDCoBx.currentIndex + 1
       inputVolumeNode = self.inputSelectorCoBx.currentNode()
       pointSelected = self.inputPointEdt.text =="[0,0,0]"
@@ -235,7 +236,7 @@ class CervicalVertebraToolsWidget(ScriptedLoadableModuleWidget):
          if (not inputVolumeNode is None) and (not pointSelected) and (not self.inputFiducialNode is None):
             # create an option to use IJK point or fidicual node
             # inputImage, FiducialPoint, vertebraID, isExteranl ,C7Editbox
-            vtSegNode =self.logic.run(inputVolumeNode ,self.inputFiducialNode, vtID )
+            vtSegNode =self.logic.run(inputVolumeNode ,self.inputFiducialNode, vtID, methodID )
             self.vsc.dispSeg(inputVolumeNode ,vtSegNode, 34 )
          else:
             print("error in input, please check input image or input point")
@@ -272,7 +273,7 @@ class CervicalVertebraToolsLogic(ScriptedLoadableModuleLogic):
   #                       Segmentation Process 
   #--------------------------------------------------------------------------------------------        
   # This method perform the atlas segementation steps
-  def run(self, inputVolumeNode, inputFiducialNode, vtIDT):
+  def run(self, inputVolumeNode, inputFiducialNode, vtIDT, vtMethodID):
       logging.info('Processing started')
       self.vsc   = VisSimCommon.VisSimCommonLogic()
       self.vsc.setGlobalVariables(1)
@@ -418,77 +419,83 @@ class CervicalVertebraToolsTest(ScriptedLoadableModuleTest):
   #enddef
   
   def runTest(self):
-      # this function is not called from external modules  
       self.setUp()
-
-      self.vsc   = VisSimCommon.VisSimCommonLogic()   
-      self.vsc.vtVars = self.vsc.setGlobalVariables(1)
-
-      #select sample image
-      tstImg = 2 # 1 =CT, 2 = MR 
-      if tstImg ==1:
-         #TODO: add alternative image links 
-         imgWebLink = "https://cloud.uni-koblenz-landau.de/s/Mb6JHLdWw5MEPB2/download"
-         imgModality = ",imgCT"
-         c7pIJK = [ 146  , 164 , 19 ]
-      else:
-         imgWebLink = "https://cloud.uni-koblenz-landau.de/s/ieyDfHpCjHNpZXi/download"
-         imgModality = ",imgMR"
-         c7pIJK = [ 253  ,   267 ,   31 ]
-      #endif
-
-      # path and name of the downloaded sample
-      imgPath = os.path.join(*(self.vsc.vtVars['vissimPath'] +imgModality +self.vsc.vtVars['imgType']).split(","))
-      # don't download if already downloaded                       
-      if not os.path.exists(imgPath):
-               try:         
-                   print("Downloading a vertebra sample image ...")
-                   urllib.urlretrieve (imgWebLink ,imgPath )
-               except Exception as e:
-                      print("Error: can not download sample file  ...")
-                      print(e)   
-                      return -1
-               #end try-except 
-      #endif
-      #this will cause image load 
-      c7p = self.vsc.ptIJK2RAS(c7pIJK,imgPath)   
-            
-      # Which vertebra
-      vtID = 7
-
-      self.testSlicerCervicalVertebraTools(imgPath , c7p, vtID  )
-
+      self.testSlicerCervicalVertebraTools()
   #enddef
-  def testSlicerCervicalVertebraTools(self, imgPath , inputPoint , vtID):
+
+  def testSlicerCervicalVertebraTools(self, imgPath=None , inputPoint=None , vtID=None, methodID=None):
+
       self.delayDisplay("Starting testSlicerCervicalVertebraTools")
-        
-      self.logic = CervicalVertebraToolsLogic()
-      self.vsc   = VisSimCommon.VisSimCommonLogic()   
-      #setGlobal variables. 
-      self.vsc.vtVars = self.vsc.setGlobalVariables(1)
-      # remove contents of output folder
-      self.vsc.removeOtputsFolderContents()
+
       # record duration of the test    
       self.stm=time.time()
-      #load the file into Slicer   
-      [success, inputVolumeNode] = slicer.util.loadVolume( imgPath, returnNode=True)
-      #slicer changes the name sometimes by adding _number  
-      inputVolumeNode.SetName(inputVolumeNode.GetStorageNode().GetFileNameWithoutExtension())
+
+      self.vsc   = VisSimCommon.VisSimCommonLogic()   
+      self.vsc.vtVars = self.vsc.setGlobalVariables(1)
+      self.logic = CervicalVertebraToolsLogic()
+ 
+      if methodID is None:
+          methodID =0 # default
+      #endif
+      # Which vertebra
+      if vtID is None:
+          vtID = 7
+      #endif
+
+      if imgPath is None:
+         tstImg = 2 # 1 =CT, 2 = MR 
+         if tstImg ==1:
+            #TODO: add alternative image links 
+            nodeNames='Bc11702'   
+            fileNames='Bc11702.nrrd'
+            uris     ="https://cloud.uni-koblenz-landau.de/s/Mb6JHLdWw5MEPB2/download"
+            checksums='f2e6623cf11566179291e648982b46a3bc6aba9abe388e24fda57e54de98eb7c'
+            c7pIJK   = [ 146  , 164 , 19 ]
+         else:
+            nodeNames='D0040100402_3D'
+            fileNames='D0040100402_3D.nrrd'
+            uris     ="https://cloud.uni-koblenz-landau.de/s/ieyDfHpCjHNpZXi/download"
+            checksums='a034ae045e16bdb1356e6cd9eec32ad2e3744f7f849a24abfe56cce5781dec98'
+            c7pIJK = [ 253  ,   267 ,   31 ] # [-0.1703168622531166, 1.2642467778633772, 56.48611368402197]
+         #endif
+         tmpVolumeNode =  SampleData.downloadFromURL(uris, fileNames, nodeNames, checksums )[0]
+         imgPath  =  os.path.join(slicer.mrmlScene.GetCacheManager().GetRemoteCacheDirectory(),fileNames)
+         slicer.mrmlScene.RemoveNode(tmpVolumeNode)
+      else:
+           nodeNames = os.path.splitext(os.path.basename(imgPath))[0]
+      #endif 
+      [success, inputVolumeNode]  = slicer.util.loadVolume(imgPath, returnNode=True)
+      inputVolumeNode.SetName(nodeNames)
+
+      if inputPoint is None:
+          inputPoint =c7pIJK
+      #endif
+  
+      #this will cause image load 
+      c7p = self.vsc.ptIJK2RAS(inputPoint,imgPath)   
+
+      # remove contents of output folder
+      self.vsc.removeOtputsFolderContents()
 
       # create a point node for the vertebra location, this is used for cropping later
       inputFiducialNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
       inputFiducialNode.CreateDefaultDisplayNodes()
       inputFiducialNode.SetName(inputVolumeNode.GetName()+"_vtLocations")  
-      inputFiducialNode.AddFiducialFromArray(inputPoint)
+      inputFiducialNode.AddFiducialFromArray(c7p)
     
       # run the segmentation
-      vtSegNode = self.logic.run(inputVolumeNode, inputFiducialNode, vtID)    
+      vtSegNode = self.logic.run(inputVolumeNode, inputFiducialNode, vtID, methodID)    
 
       # get segmentation information
-      spTblNode = self.vsc.getItemInfo(vtSegNode, inputVolumeNode, None, vtID)
+      spTblNode = self.vsc.getItemInfo(vtSegNode, inputVolumeNode, None, vtID )
 
-      # Display
-      self.vsc.dispSeg(inputVolumeNode,vtSegNode,34) # 34: 4up table layout
+      #display:
+      try:
+          self.vsc.dispSeg(inputVolumeNode,vtSegNode,34) # 34: 4up table layout
+      except Exception as e:
+             print("Can not display results! probably an external call ...")
+             print(e)   
+      #endtry  
 
       self.etm=time.time()
       tm=self.etm - self.stm
