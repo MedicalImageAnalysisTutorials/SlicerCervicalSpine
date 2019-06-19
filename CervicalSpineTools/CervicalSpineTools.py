@@ -17,7 +17,7 @@
 #                                                                                     #
 #-------------------------------------------------------------------------------------#
 #  Slicer 4.11                                                                        #    
-#  Updated: 18.6.2019                                                                 #    
+#  Updated: 19.6.2019                                                                 #    
 #=====================================================================================#
 
 import os, re , datetime, time ,shutil, unittest, logging, zipfile, urllib.request, stat,  inspect
@@ -501,7 +501,9 @@ class CervicalSpineToolsTest(ScriptedLoadableModuleTest):
             #TODO: add alternative image links 
             nodeNames='Bc11702'   
             fileNames='Bc11702.nrrd'
-            uris     ="https://cloud.uni-koblenz-landau.de/s/Mb6JHLdWw5MEPB2/download"
+            urisUniKo     ="https://cloud.uni-koblenz-landau.de/s/Mb6JHLdWw5MEPB2/download"
+            urisGitHub   = 'https://github.com/MedicalImageAnalysisTutorials/VisSimData/raw/master/Bc11702.nrrd'
+            uris = urisGitHub          
             checksums='f2e6623cf11566179291e648982b46a3bc6aba9abe388e24fda57e54de98eb7c'
             #  CT: define a markup with all locations  
             c1p = [-5.507 ,  -20.202 , -18.365 ]
@@ -511,7 +513,9 @@ class CervicalSpineToolsTest(ScriptedLoadableModuleTest):
          else:
             nodeNames='D0040100402_3D'
             fileNames='D0040100402_3D.nrrd'
-            uris     ="https://cloud.uni-koblenz-landau.de/s/ieyDfHpCjHNpZXi/download"
+            urisUniKo     ="https://cloud.uni-koblenz-landau.de/s/ieyDfHpCjHNpZXi/download"
+            urisGitHub   = 'https://github.com/MedicalImageAnalysisTutorials/VisSimData/raw/master/D0040100402_3D.nrrd'
+            uris = urisGitHub          
             checksums='a034ae045e16bdb1356e6cd9eec32ad2e3744f7f849a24abfe56cce5781dec98'
             # MR: define a markup with all locations     
             c1p = [  1.062  ,  53.364 ,  145.951 ]
