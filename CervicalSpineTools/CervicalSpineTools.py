@@ -504,7 +504,7 @@ class CervicalSpineToolsTest(ScriptedLoadableModuleTest):
             urisUniKo     ="https://cloud.uni-koblenz-landau.de/s/Mb6JHLdWw5MEPB2/download"
             urisGitHub   = 'https://github.com/MedicalImageAnalysisTutorials/VisSimData/raw/master/Bc11702.nrrd'
             uris = urisGitHub          
-            checksums='f2e6623cf11566179291e648982b46a3bc6aba9abe388e24fda57e54de98eb7c'
+            checksums='SHA256:f2e6623cf11566179291e648982b46a3bc6aba9abe388e24fda57e54de98eb7c'
             #  CT: define a markup with all locations  
             c1p = [-5.507 ,  -20.202 , -18.365 ]
             c2p = [-1.169  , -20.089 , -45.021 ]
@@ -516,7 +516,7 @@ class CervicalSpineToolsTest(ScriptedLoadableModuleTest):
             urisUniKo     ="https://cloud.uni-koblenz-landau.de/s/ieyDfHpCjHNpZXi/download"
             urisGitHub   = 'https://github.com/MedicalImageAnalysisTutorials/VisSimData/raw/master/D0040100402_3D.nrrd'
             uris = urisGitHub          
-            checksums='a034ae045e16bdb1356e6cd9eec32ad2e3744f7f849a24abfe56cce5781dec98'
+            checksums='SHA256:a034ae045e16bdb1356e6cd9eec32ad2e3744f7f849a24abfe56cce5781dec98'
             # MR: define a markup with all locations     
             c1p = [  1.062  ,  53.364 ,  145.951 ]
             c2p = [ -0.408  ,  44.283 ,  122.994 ]
