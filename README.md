@@ -25,7 +25,13 @@ Please share your cervical spine dataset with us.
 
 Your contribution is welcome! 
 
-Note: This project uses [Slicer license](https://github.com/Slicer/Slicer/blob/master/License.txt)
+
+# License
+
+Copyright 2019, [Dr. Ibraheem AL-Dhamari](https://idhamari.com).
+
+Licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0). 
+
 
 
 
