@@ -1,10 +1,13 @@
 #======================================================================================
 #  3D Slicer [1] plugin that uses elastix toolbox [2] Plugin for Automatic Cervical   # 
-#  SPine Image Segmentation and other useful features extraction[3]                   #
-#  More info can be found at [3,4 and 5]                                              #
+#  Spine Image Segmentation and other useful features extraction[3]                   #
+#  Locate all vertebrae and you get all segmentations  and other features             #
+#  More info can be found at [3 and 4]                                                #
 #  Sample vertebra datasets can be downloaded using Slicer Datastore module           #
+#  Note: it is recommended to use deep learning based segmentation instead of         #
+#         this extension                                                              #
 #                                                                                     #
-#  Contributers: Ibraheem Al-Dhamari,  idhamari@uni-koblenz.de                        #
+#  Contributers: Ibraheem Al-Dhamari,  ia@idhamari                                    #
 #  [1] https://www.slicer.org                                                         #
 #  [2] http://elastix.isi.uu.nl                                                       #
 #  [3] Ibraheem AL-Dhamari, Sabine Bauer, Eva Keller and Dietrich Paulus, (2019),     #
@@ -12,12 +15,11 @@
 #      IEEE International Symposium on Biomedical Imaging (ISBI), Venice, Italy.      #
 #  [4] Ibraheem Al-Dhamari, Sabine Bauer, Dietrich Paulus, (2018), Automatic          #
 #      Multi-modal Cervical Spine Image Atlas Segmentation Using Adaptive Stochastic  #
-#      Gradient Descent, Bildverarbeitung feur die Medizin 2018 pp 303-308.            #  
-#  [5] https://mtixnat.uni-koblenz.de                                                 #
+#      Gradient Descent, Bildverarbeitung feur die Medizin 2018 pp 303-308.           #  
 #                                                                                     #
 #-------------------------------------------------------------------------------------#
-#  Slicer 4.11                                                                        #    
-#  Updated: 19.6.2019                                                                 #    
+#  Slicer 5.4.0                                                                       #    
+#  Updated: 18.11.2023                                                                #    
 #=====================================================================================#
 
 import os, re , datetime, time ,shutil, unittest, logging, zipfile, urllib.request, stat,  inspect
@@ -59,9 +61,6 @@ class CervicalSpineTools(ScriptedLoadableModule):
         #TODO: add sponsor
         parent.acknowledgementText = " This work is sponsored by ................ "
         self.parent = parent
-  #end def init
-#end class vertebraSeg
-
     
 #===================================================================
 #                           Main Widget
@@ -180,28 +179,22 @@ class CervicalSpineToolsWidget(ScriptedLoadableModuleWidget):
              print("inputFiducialNode exist")
              self.logic.inputFiducialNode = f  
              newNode= False
-            #endif
-      #endfor    
+
       if not hasattr(self.vsc, 'vtVars'):
          self.vsc.setGlobalVariables(1)
-      #end 
+
       self.inputFiducialNode  = self.vsc.locateItem(self.inputVolumeNode,self.inputPointEdt, 0, self.vtID)    
-      #self.onInputFiducialBtnClick()
-  #enddef
+
 
   def onInputPointEdtChanged(self,point):
       self.vtID = self.vtIDCoBx.currentIndex + 1   
       self.vsc.setVtIDfromEdt(point, self.vtID)
-  #enddef
     
   # extract ligaments points 
   def onLigPtsChkBxChange(self):      
       nodes = slicer.util.getNodesByClass('vtkMRMLMarkupsFiducialNode')
       ligName = "_LigPts_C" # + self.vsc.vtVars['vtID']
       self.vsc.setItemChk('ligChk',self.ligPtsChkBx.checked,ligName, nodes)
-
-      
-  #enddef
   
   def onApplyBtnClick(self):
       #check if C1,C4 and C7 points are selected
@@ -227,20 +220,16 @@ class CervicalSpineToolsWidget(ScriptedLoadableModuleWidget):
       except Exception as e:
                 print("STOPPED: error in input")
                 print(e)
-      #endtry   
-           
+          
       self.etm=time.time()
       tm=self.etm - self.stm
       self.timeLbl.setText("Time: "+str(tm)+"  seconds")
       self.runBtn.setText("Run")
       self.runBtn.setStyleSheet("QPushButton{ background-color: DarkSeaGreen  }")
       slicer.app.processEvents()
-                
-  #enddef
        
   def onOpenResultFolderBtnClick(self):
       self.vsc.openResultsFolder()
-  #enddef
 #===================================================================
 #                           Logic
 #===================================================================
@@ -259,13 +248,13 @@ class CervicalSpineToolsLogic(ScriptedLoadableModuleLogic):
          
          # C3 location
          vtIDsLst[2]=[vtIDsLst[3][0]-v1x , vtIDsLst[3][1]-v1y , vtIDsLst[3][2]-v1z]
-         inputFiducialNode.AddFiducialFromArray(vtIDsLst[2])
-         inputFiducialNode.SetNthFiducialLabel(4, "C3")
+         inputFiducialNode. AddControlPoint(vtIDsLst[2])
+         inputFiducialNode. SetNthControlPointLabel(4, "C3")
 
          ## C2 location
          #vtIDsLst[1]=[vtIDsLst[2][0]-v1x , vtIDsLst[2][1]-v1y , vtIDsLst[2][2]-v1z]
-         #self.inputFiducialNode.AddFiducialFromArray(vtIDsLst[1])
-         #self.inputFiducialNode.SetNthFiducialLabel(4, "C2") # note that 4 is the index of last one added so far
+         #self.inputFiducialNode. AddControlPoint(vtIDsLst[1])
+         #self.inputFiducialNode. SetNthControlPointLabel(4, "C2") # note that 4 is the index of last one added so far
 
          # compute displacement between C7 and C4
          v2x= (vtIDsLst[6][0]-vtIDsLst[3][0])/4
@@ -274,23 +263,21 @@ class CervicalSpineToolsLogic(ScriptedLoadableModuleLogic):
          
          # C5 location
          vtIDsLst[4]=[vtIDsLst[3][0]+v1x , vtIDsLst[3][1]+v1y , vtIDsLst[3][2]+v1z]
-         inputFiducialNode.AddFiducialFromArray(vtIDsLst[4])
-         inputFiducialNode.SetNthFiducialLabel(5, "C5")
+         inputFiducialNode. AddControlPoint(vtIDsLst[4])
+         inputFiducialNode. SetNthControlPointLabel(5, "C5")
          
          # C6 location
          vtIDsLst[5]=[vtIDsLst[4][0]+v1x , vtIDsLst[4][1]+v1y , vtIDsLst[4][2]+v1z]
-         inputFiducialNode.AddFiducialFromArray(vtIDsLst[5])
-         inputFiducialNode.SetNthFiducialLabel(6, "C6")
+         inputFiducialNode. AddControlPoint(vtIDsLst[5])
+         inputFiducialNode. SetNthControlPointLabel(6, "C6")
 
          fnm = os.path.join(self.vsc.vtVars['outputPath'], inputFiducialNode.GetName()+".fcsv")                             
          sR = slicer.util.saveNode(inputFiducialNode, fnm ) 
       else:
          print("Error, at least locate 4 points: C1, C2, C4, C7!!!")
          return -1
-      #endif
-      return vtIDsLst
-  #enddef
-         
+
+      return vtIDsLst        
 
   def run( self, inputVolumeNode, inputFiducialNode, methodID):       
         
@@ -311,17 +298,15 @@ class CervicalSpineToolsLogic(ScriptedLoadableModuleLogic):
            vtIDsLst.append([0,0,0])
            self.intputCropPaths.append("")
            self.inputPoints.append([0,0,0])
-       #endfor    
-       for j in range(inputFiducialNode.GetNumberOfFiducials()):
-           l= inputFiducialNode.GetNthFiducialLabel(j)
+
+       for j in range(inputFiducialNode.GetNumberOfControlPoints()):
+           l= inputFiducialNode.GetNthControlPointLabel(j)
            k = int(l[1])
            missingVt[k-1]= 0 
-           inputFiducialNode.GetNthFiducialPosition(j,vtIDsLst[k-1])
-       #endfor       
+           inputFiducialNode.GetNthControlPointPosition(j,vtIDsLst[k-1])
                
        if sum(missingVt)>0:         
           vtIDsLst =  self.getAllVertebraePoints(vtIDsLst,inputFiducialNode)
-       #endif       
            
        #create a table for vertebra information        
        tableName =  inputVolumeNode.GetName()+"_tbl"
@@ -352,8 +337,6 @@ class CervicalSpineToolsLogic(ScriptedLoadableModuleLogic):
            self.modelPaths.append(modelCropPath)  
            if not os.path.exists(self.outputPaths[i]):
               os.makedirs(self.outputPaths[i])
-           #endif
-       #endfor  
 
        # try parallel but slicer crash
        # try if we collect information then run popen
@@ -387,14 +370,14 @@ class CervicalSpineToolsLogic(ScriptedLoadableModuleLogic):
 
            os.rename(resOldDefPath,resDefPath)
 
-           [success, vtTransformNode] = slicer.util.loadTransform(resDefPath, returnNode = True)
+           vtTransformNode = slicer.util.loadTransform(resDefPath )
            vtTransformNode.SetName(transNodeName)
 
            
            modelSegPath   = self.vsc.vtVars['modelPath'] + self.vsc.vtVars['segT']+",Mdl"+self.vsc.vtVars['Styp']+ str(vtID)+ self.vsc.vtVars['sgT'] +self.vsc.vtVars['imgType'] 
            modelSegPath   =   os.path.join(*modelSegPath.split(","))
            
-           [success, vtResultSegNode] = slicer.util.loadSegmentation(modelSegPath, returnNode = True)
+           vtResultSegNode = slicer.util.loadSegmentation(modelSegPath )
            vtResultSegNode.SetName(segNodeName)
            vtResultSegNode.SetAndObserveTransformNodeID(vtTransformNode.GetID()) # movingAllMarkupNode should be loaded, the file contains all points
            slicer.vtkSlicerTransformLogic().hardenTransform(vtResultSegNode) 
@@ -405,7 +388,8 @@ class CervicalSpineToolsLogic(ScriptedLoadableModuleLogic):
            if self.vsc.s2b(self.vsc.vtVars['ligChk']):            
               modelCropImgLigPtsPath = self.vsc.vtVars['modelPath'] +self.vsc.vtVars['vtPtsLigDir']+","+self.vsc.vtVars['Styp']+ str(vtID)+self.vsc.vtVars['vtPtsLigSuff']+".fcsv"
               modelCropImgLigPtsPath        = os.path.join(*modelCropImgLigPtsPath.split(","))
-              [success, vtLigPtsNode] = slicer.util.loadMarkupsFiducialList  (modelCropImgLigPtsPath, returnNode = True)
+              #vtLigPtsNode = slicer.util.loadMarkupsFiducialList  (modelCropImgLigPtsPath )
+              vtLigPtsNode = slicer.util.loadMarkups (modelCropImgLigPtsPath )
               vtLigPtsNode.GetDisplayNode().SetSelectedColor(1,0,0)           
               vtLigPtsNode.GetDisplayNode().SetTextScale(0.5)
               vtLigPtsNode.SetName(ligPtsNodeName)
@@ -415,9 +399,8 @@ class CervicalSpineToolsLogic(ScriptedLoadableModuleLogic):
               self.vtLigPtsNode = vtLigPtsNode
               fnm = os.path.join(self.outputPaths[i] , vtLigPtsNode.GetName()+".fcsv")                             
               sR = slicer.util.saveNode(vtLigPtsNode, fnm ) 
-           #endif 
+
            self.getVertebraInfoAll( i )
-       #endfor
 
        self.spTblNode.RemoveRow(0)   
      
@@ -427,18 +410,15 @@ class CervicalSpineToolsLogic(ScriptedLoadableModuleLogic):
        #Remove temporary files and nodes:
        self.vsc.removeTmpsFiles()    
        return vtResultSegNode
-  #enddef
-
 
   def runCroppingAll(self,i):
       vtID = i+1
       print("------------ cropping process: " +str(i))
       # try crop in parallel:   
-      for j in range (self.inputFiducialNode.GetNumberOfFiducials() ):
-          if self.inputFiducialNode.GetNthFiducialLabel(j)==("C"+str(vtID)):
+      for j in range (self.inputFiducialNode.GetNumberOfControlPoints() ):
+          if self.inputFiducialNode.GetNthControlPointLabel(j)==("C"+str(vtID)):
              break
-          #endif
-      #endfor
+
       self.inputPoints[i]=self.vsc.ptRAS2IJK(self.inputFiducialNode,self.inputVolumeNode,j)
       print(self.inputPoints[i])
       self.inputPoints[i] ="["+str(self.inputPoints[i][0])+","+str(self.inputPoints[i][1])+","+str(self.inputPoints[i][2])+"]"
@@ -446,17 +426,14 @@ class CervicalSpineToolsLogic(ScriptedLoadableModuleLogic):
       
       print("ii = " +str(i)+ "  img :"+ self.intputCropPaths[i]          )
       print("------------ cropping process: " +str(i)+"  ...complete")
-  #enddef
 
   def runElastixAll(self,i):
       vtID = i+1
       self.vsc.runElastix(self.vsc.vtVars['elastixBinPath'], self.intputCropPaths[i], self.modelPaths[i], self.outputPaths[i], self.vsc.vtVars['parsPath'] ,self.vsc.vtVars['noOutput'], "674")
-  #enddef
 
   def runTransformixAll(self,i):
       vtID = i+1
       self.vsc.runTransformix(self.vsc.vtVars['transformixBinPath'] ,self.modelPaths[i], self.outputPaths[i], self.resTransPath, self.vsc.vtVars['noOutput'], "1254")
-  #enddef
                 
   def getVertebraInfoAll(self,i):
       vtID = i+1
@@ -465,7 +442,6 @@ class CervicalSpineToolsLogic(ScriptedLoadableModuleLogic):
       self.spTblNode = self.vsc.getItemInfo( segNode, masterNode, self.spTblNode, vtID)      
       fnm = os.path.join(self.vsc.vtVars['outputPath'], self.spTblNode.GetName()+".tsv")                             
       sR = slicer.util.saveNode(self.spTblNode, fnm ) 
-  #enddef
                               
 #===================================================================
 #                           Test
@@ -474,12 +450,10 @@ class CervicalSpineToolsTest(ScriptedLoadableModuleTest):
 
   def setUp(self):
       slicer.mrmlScene.Clear(0)
-  #endef      
 
   def runTest(self):
       self.setUp()
       self.testSlicerCervicalSpineTools()
-  #enddef
 
   def testSlicerCervicalSpineTools(self, imgPath=None , inputPoints=None, methodID=None):
       self.delayDisplay("Starting testSlicerCervicalSpineTools")
@@ -493,7 +467,6 @@ class CervicalSpineToolsTest(ScriptedLoadableModuleTest):
  
       if methodID is None:
           methodID =0 # default
-      #endif
 
       if imgPath is None:
          tstImg = 2 # 1 =CT, 2 = MR 
@@ -522,15 +495,15 @@ class CervicalSpineToolsTest(ScriptedLoadableModuleTest):
             c2p = [ -0.408  ,  44.283 ,  122.994 ]
             c4p = [ -0.408  ,  36.107 ,   89.941 ]
             c7p = [ -0.408  ,   3.439 ,   54.432 ]
-         #endifelse
+         
          tmpVolumeNode =  SampleData.downloadFromURL(uris, fileNames, nodeNames, checksums )[0]
          imgPath  =  os.path.join(slicer.mrmlScene.GetCacheManager().GetRemoteCacheDirectory(),fileNames)
          slicer.mrmlScene.RemoveNode(tmpVolumeNode)
          inputPoints = [c1p,c2p,c4p,c7p]
       else:
            nodeNames = os.path.splitext(os.path.basename(imgPath))[0]
-      #endif 
-      [success, inputVolumeNode]  = slicer.util.loadVolume(imgPath, returnNode=True)
+      
+      inputVolumeNode  = slicer.util.loadVolume(imgPath )
       inputVolumeNode.SetName(nodeNames)
 
       inputFiducialNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
@@ -541,18 +514,16 @@ class CervicalSpineToolsTest(ScriptedLoadableModuleTest):
       numberOfPoints = len(inputPoints)
       for i in range(numberOfPoints):
           print(i)
-          inputFiducialNode.AddFiducialFromArray(inputPoints[i])
+          inputFiducialNode. AddControlPoint(inputPoints[i])
           if  numberOfPoints == 4:
-              inputFiducialNode.SetNthFiducialLabel(i, "C"+str(FourPoints[i]))
+              inputFiducialNode. SetNthControlPointLabel(i, "C"+str(FourPoints[i]))
               print( "C"+str(FourPoints[i]))
           elif numberOfPoints == 7: 
-              inputFiducialNode.SetNthFiducialLabel(i, "C1" +str(i+1))
+              inputFiducialNode. SetNthControlPointLabel(i, "C1" +str(i+1))
           
           elif (numberOfPoints<4)or (numberOfPoints>7):
               print("Error: wrong number of input points, please provide 4-7 points")  
               return -1
-          #endifelse    
-      #endfor
 
       #Run Segmentation 
       vtSegNode = self.logic.run(inputVolumeNode, inputFiducialNode, methodID )
@@ -562,12 +533,9 @@ class CervicalSpineToolsTest(ScriptedLoadableModuleTest):
         self.vsc.dispSeg(inputVolumeNode,vtSegNode,34) # 34: 4up table layout
       except:
         print("No display is available! probably an external call.")  
-      #endtry     
 
       self.etm=time.time()
       tm=self.etm - self.stm
       print("Time: "+str(tm)+"  seconds")
 
       self.delayDisplay('Test testSlicerCervicalSpineTools passed!')
-  #enddef
-#endclass
