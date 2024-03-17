@@ -2,7 +2,7 @@
 
 <img src="https://github.com/MedicalImageAnalysisTutorials/SlicerCervicalSpine/blob/master/CervicalSpine.png" width="400" height="400">
 
-This is a [3D Slicer](https://github.com/Slicer/Slicer) plugin that uses [elastix toolbox](https://github.com/SuperElastix/elastix) for Multi-modal CervicalSpine Images segmentation and analysis. More information can be found in the related publications. The elastix parameters file can be found [here](https://github.com/MedicalImageAnalysisTutorials/SlicerCervicalSpine/tree/master/CervicalVertebraTools/pars)
+This is a [3D Slicer](https://github.com/Slicer/Slicer) plugin that uses [elastix toolbox](https://github.com/SuperElastix/elastix) for Multi-modal CervicalSpine Images segmentation and analysis. More information can be found in the related publications. The elastix parameters file can be found [here](https://github.com/MedicalImageAnalysisTutorials/SlicerCervicalSpine/tree/master/pars)
 
 **Tested on:** 
 Slicer 5.6, Windows 10 and Ubuntu 20.04 
