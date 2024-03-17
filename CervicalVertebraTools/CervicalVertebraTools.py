@@ -18,8 +18,8 @@
 #      Gradient Descent, Bildverarbeitung feur die Medizin 2018 pp 303-308.           #  
 #                                                                                     #
 #-------------------------------------------------------------------------------------#
-#  Slicer 5.4.0                                                                       #    
-#  Updated: 18.11.2023                                                                #    
+#  Slicer 5.6                                                                         #    
+#  Updated: 17.3.2024                                                                 #    
 #=====================================================================================#
 
 import os, re , datetime, time ,shutil, unittest, logging, zipfile, urllib.request, stat,  inspect, glob
@@ -41,25 +41,6 @@ import SampleData
 #Dependant Modules
 import VisSimCommon #Dependant Modules
 
-#TODO:
-
-# 1. test user inputs ..............done!
-# 2. cleaning ..................... done!
-# 3. test on mac and windows
-# 4. remove temps nodes and files 
-# 5. Add sponsor in parent.acknowledgementText  
-# 6. Test adding IJK point manually
-
-# Later:
-# - Checking if all above are needed 
-# - More optimizing.  
-# - Supporting DICOM and Supporting illegal filename.  
-# - Option for user to change vissimPath 
-# - Alternative options for download links.
-# - Alternative options for using Slicer Elastix.
-# - Visualizing the interimediate steps. 
-#  
-#  
 # Terminology
 #  img         : ITK image 
 #  imgNode     : Slicer Node

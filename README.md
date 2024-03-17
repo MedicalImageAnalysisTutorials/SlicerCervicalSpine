@@ -2,10 +2,10 @@
 
 <img src="https://github.com/MedicalImageAnalysisTutorials/SlicerCervicalSpine/blob/master/CervicalSpine.png" width="400" height="400">
 
-This is a [3D Slicer](https://github.com/Slicer/Slicer) plugin that uses [elastix toolbox](https://github.com/SuperElastix/elastix) for Multi-modal CervicalSpine Images segmentation and analysis. More information can be found [here](https://mtixnat.uni-koblenz.de). The elastix parameters file can be found [here](http://elastix.bigr.nl/wiki/index.php/Par0053)
+This is a [3D Slicer](https://github.com/Slicer/Slicer) plugin that uses [elastix toolbox](https://github.com/SuperElastix/elastix) for Multi-modal CervicalSpine Images segmentation and analysis. More information can be found in the related publications. The elastix parameters file can be found [here](https://github.com/MedicalImageAnalysisTutorials/SlicerCervicalSpine/tree/master/CervicalVertebraTools/pars)
 
 **Tested on:** 
-Slicer 4.10.1, Windows 10 and Ubuntu 18.04 
+Slicer 5.6, Windows 10 and Ubuntu 20.04 
 
 This project contains two modules:
 
@@ -21,10 +21,15 @@ Please cite our papers:
 
 *  Ibraheem Al-Dhamari, Sabine Bauer, Dietrich Paulus, (2018), Automatic Multi-modal Cervical Spine Image Atlas Segmentation Using Adaptive Stochastic Gradient Descent, Bildverarbeitung für die Medizin 2018 pp 303-308.
 
-Please share your cervical spine dataset with us. 
 
 Your contribution is welcome! 
 
+# Notes:  
+
+* For general 3D Slicer questions, please use Slicer [forum](https://discourse.slicer.org), many experts will be able to help you there. 
+* For Slicer Spine related questions, comemnts, or feedback, please use github [discussion](https://github.com/MedicalImageAnalysisTutorials/SlicerCervicalSpine/discussions/categories/q-a) section. 
+* For  Slicer Spine related bugs, please open a new [issue](https://github.com/MedicalImageAnalysisTutorials/SlicerCervicalSpine/issues) if needed. Please mention your operating system, slicer version, and the error message you see in python interactor.
+* For sharing private information, dataset, a future project proposal or cooperation, please use the [email](ia@idhamari.com), use SlicerSpine in the subject. 
 
 # License
 

@@ -18,8 +18,8 @@
 #      Gradient Descent, Bildverarbeitung feur die Medizin 2018 pp 303-308.           #  
 #                                                                                     #
 #-------------------------------------------------------------------------------------#
-#  Slicer 5.4.0                                                                       #    
-#  Updated: 18.11.2023                                                                #    
+#  Slicer 5.6                                                                         #    
+#  Updated: 17.3.2024                                                                 #    
 #=====================================================================================#
 
 import os, re , datetime, time ,shutil, unittest, logging, zipfile, urllib.request, stat,  inspect
@@ -42,9 +42,6 @@ import SampleData
 
 import VisSimCommon
 
-#TODO:
-# parallel process support, check python 3 
-# extend to whole spine
 
 #===================================================================
 #                           Main Class
